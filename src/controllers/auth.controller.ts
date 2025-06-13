@@ -100,25 +100,57 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       throw createError('Invalid credentials', 401);
     }
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id },
-      config.jwtSecret,
-      { expiresIn: config.jwtExpiresIn } as jwt.SignOptions
-    );
-
-    // Calculate expiration date
-    const expiresAt = new Date();
-    expiresAt.setTime(expiresAt.getTime() + (24 * 60 * 60 * 1000)); // 24 hours
-
-    // Create session
-    const session = await prisma.session.create({
-      data: {
+    // Check if user already has an active session
+    const existingSession = await prisma.session.findFirst({
+      where: {
         userId: user.id,
-        token,
-        expiresAt,
+        expiresAt: {
+          gt: new Date() // Greater than current time (not expired)
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
+
+    let token: string;
+    let session: any;
+
+    if (existingSession) {
+      // Use existing valid token
+      token = existingSession.token;
+      session = existingSession;
+    } else {
+      // Clean up any expired sessions for this user
+      await prisma.session.deleteMany({
+        where: {
+          userId: user.id,
+          expiresAt: {
+            lte: new Date() // Less than or equal to current time (expired)
+          }
+        }
+      });
+
+      // Generate new JWT token
+      token = jwt.sign(
+        { userId: user.id },
+        config.jwtSecret,
+        { expiresIn: config.jwtExpiresIn } as jwt.SignOptions
+      );
+
+      // Calculate expiration date
+      const expiresAt = new Date();
+      expiresAt.setTime(expiresAt.getTime() + (24 * 60 * 60 * 1000)); // 24 hours
+
+      // Create new session
+      session = await prisma.session.create({
+        data: {
+          userId: user.id,
+          token,
+          expiresAt,
+        }
+      });
+    }
 
     // Return user data and token
     res.status(200).json({
@@ -148,18 +180,79 @@ export const logout = async (req: AuthenticatedRequest, res: Response, next: Nex
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       
-      // Remove session from database
+      // Remove current session from database
       await prisma.session.deleteMany({
         where: {
           token,
           userId: req.user!.id
         }
       });
+
+      // Optionally, remove all sessions for this user (logout from all devices)
+      // await prisma.session.deleteMany({
+      //   where: {
+      //     userId: req.user!.id
+      //   }
+      // });
     }
 
     res.status(200).json({
       success: true,
       message: 'Logged out successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSessionStatus = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw createError('No token provided', 401);
+    }
+
+    const token = authHeader.substring(7);
+    
+    // Find current session
+    const session = await prisma.session.findFirst({
+      where: {
+        token,
+        userId: req.user!.id,
+        expiresAt: {
+          gt: new Date()
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          }
+        }
+      }
+    });
+
+    if (!session) {
+      throw createError('Session not found or expired', 401);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Session is valid',
+      data: {
+        session: {
+          id: session.id,
+          expiresAt: session.expiresAt,
+          createdAt: session.createdAt,
+        },
+        user: session.user,
+        tokenValidUntil: session.expiresAt
+      }
     });
   } catch (error) {
     next(error);
