@@ -9,7 +9,10 @@ import {
     getActiveSubscription,
     getSubscriptionHistory,
     cancelSubscription,
-    startTrial
+    startTrial,
+    getFullProfile,
+    updateProfile,
+    changePassword
 } from '../controllers/auth.controller';
 import { validateAuth } from '../middleware/auth.middleware';
 
@@ -22,6 +25,9 @@ router.post('/login', login);
 // Protected routes
 router.post('/logout', validateAuth, logout);
 router.get('/profile', validateAuth, profile);
+router.get('/profile/full', validateAuth, getFullProfile);
+router.put('/profile', validateAuth, updateProfile);
+router.post('/change-password', validateAuth, changePassword);
 router.get('/session', validateAuth, getSessionStatus);
 
 // Subscription routes

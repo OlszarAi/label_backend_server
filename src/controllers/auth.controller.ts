@@ -486,3 +486,180 @@ export const startTrial = async (req: AuthenticatedRequest, res: Response, next:
     next(error);
   }
 };
+
+export const getFullProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.id;
+
+    // Get user data
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    if (!user) {
+      throw createError('User not found', 404);
+    }
+
+    // Get current subscription
+    const currentSubscription = await getCurrentSubscription(userId);
+
+    // Get subscription history
+    const subscriptionHistory = await getSubscriptionHistoryService(userId);
+
+    // Calculate stats
+    const daysFromRegistration = Math.floor(
+      (new Date().getTime() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    const totalSpent = subscriptionHistory.reduce((sum, sub) => {
+      return sum + (sub.price ? parseFloat(sub.price.toString()) : 0);
+    }, 0);
+
+    // Get last login (from sessions)
+    const lastSession = await prisma.session.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true }
+    });
+
+    const stats = {
+      labelsCreated: 0, // TODO: Implement when labels feature is added
+      projectsSaved: 0, // TODO: Implement when projects feature is added
+      daysFromRegistration,
+      totalSpent,
+      lastLoginDate: lastSession?.createdAt || null,
+    };
+
+    const profileData = {
+      user,
+      currentSubscription,
+      subscriptionHistory,
+      stats,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: profileData
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { firstName, lastName, email } = req.body;
+    const userId = req.user!.id;
+
+    // Validate input
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw createError('Invalid email format', 400);
+    }
+
+    // Check if email is already taken by another user
+    if (email) {
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          email,
+          NOT: { id: userId }
+        }
+      });
+
+      if (existingUser) {
+        throw createError('Email already taken', 409);
+      }
+    }
+
+    // Update user
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(firstName !== undefined && { firstName }),
+        ...(lastName !== undefined && { lastName }),
+        ...(email !== undefined && { email }),
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: updatedUser
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const changePassword = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user!.id;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      throw createError('Current password and new password are required', 400);
+    }
+
+    if (newPassword.length < 8) {
+      throw createError('New password must be at least 8 characters long', 400);
+    }
+
+    // Get user with password
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        password: true
+      }
+    });
+
+    if (!user) {
+      throw createError('User not found', 404);
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      throw createError('Current password is incorrect', 400);
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, config.bcryptRounds);
+
+    // Update password
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedNewPassword,
+        updatedAt: new Date(),
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
