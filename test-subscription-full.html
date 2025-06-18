@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Subscription System Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.success {
+            background-color: #28a745;
+        }
+        button.danger {
+            background-color: #dc3545;
+        }
+        input, select {
+            margin: 5px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .info {
+            color: blue;
+        }
+        .warning {
+            color: orange;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Complete Subscription System Test</h1>
+        <p>This page tests the new subscription system with separate subscription table.</p>
+    </div>
+
+    <div class="grid">
+        <div class="container">
+            <div class="section">
+                <h2>🔐 Authentication</h2>
+                <div>
+                    <h3>Register New User</h3>
+                    <input type="text" id="regEmail" placeholder="Email" value="test@example.com">
+                    <input type="password" id="regPassword" placeholder="Password" value="password123">
+                    <input type="text" id="regName" placeholder="Name" value="Test User">
+                    <button onclick="register()">Register</button>
+                </div>
+                <div>
+                    <h3>Login</h3>
+                    <input type="text" id="loginEmail" placeholder="Email" value="test@example.com">
+                    <input type="password" id="loginPassword" placeholder="Password" value="password123">
+                    <button onclick="login()">Login</button>
+                </div>
+                <div>
+                    <button onclick="getProfile()">Get Profile</button>
+                    <button onclick="logout()" class="danger">Logout</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📊 Subscription Management</h2>
+                <div>
+                    <h3>Update Subscription</h3>
+                    <select id="subscriptionType">
+                        <option value="FREE">FREE</option>
+                        <option value="BASIC">BASIC</option>
+                        <option value="PREMIUM">PREMIUM</option>
+                        <option value="ENTERPRISE">ENTERPRISE</option>
+                    </select>
+                    <select id="billingCycle">
+                        <option value="MONTHLY">MONTHLY</option>
+                        <option value="YEARLY">YEARLY</option>
+                        <option value="LIFETIME">LIFETIME</option>
+                    </select>
+                    <button onclick="updateSubscription()">Update Subscription</button>
+                </div>
+                <div>
+                    <button onclick="getActiveSubscription()">Get Active Subscription</button>
+                    <button onclick="getSubscriptionHistory()">Get History</button>
+                    <button onclick="cancelSubscription()" class="danger">Cancel Subscription</button>
+                </div>
+                <div>
+                    <h3>Trial</h3>
+                    <input type="number" id="trialDays" placeholder="Trial Days" value="7">
+                    <button onclick="startTrial()">Start Trial</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="section">
+                <h2>📈 Health & Info</h2>
+                <button onclick="healthCheck()">Health Check</button>
+                <button onclick="clearResults()">Clear Results</button>
+                <div>
+                    <h3>Current Token</h3>
+                    <pre id="currentToken">Not logged in</pre>
+                </div>
+                <div>
+                    <h3>Current User</h3>
+                    <pre id="currentUser">Not logged in</pre>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📝 Test Results</h2>
+                <div id="results" style="max-height: 400px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        let currentToken = null;
+        let currentUser = null;
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            results.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            results.scrollTop = results.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function updateTokenDisplay() {
+            document.getElementById('currentToken').textContent = currentToken ? 
+                `${currentToken.substring(0, 50)}...` : 'Not logged in';
+        }
+
+        function updateUserDisplay() {
+            document.getElementById('currentUser').textContent = currentUser ? 
+                JSON.stringify(currentUser, null, 2) : 'Not logged in';
+        }
+
+        async function makeRequest(url, options = {}) {
+            try {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                };
+
+                if (currentToken) {
+                    headers['Authorization'] = `Bearer ${currentToken}`;
+                }
+
+                const response = await fetch(url, {
+                    ...options,
+                    headers
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || `HTTP ${response.status}`);
+                }
+
+                return data;
+            } catch (error) {
+                log(`Request failed: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function register() {
+            try {
+                const email = document.getElementById('regEmail').value;
+                const password = document.getElementById('regPassword').value;
+                const name = document.getElementById('regName').value;
+
+                log(`Registering user: ${email}`, 'info');
+
+                const data = await makeRequest(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password, name })
+                });
+
+                log(`✅ Registration successful!`, 'success');
+                log(`User created with subscription: ${JSON.stringify(data.user.subscription)}`, 'success');
+                
+                currentToken = data.token;
+                currentUser = data.user;
+                updateTokenDisplay();
+                updateUserDisplay();
+
+            } catch (error) {
+                log(`❌ Registration failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function login() {
+            try {
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+
+                log(`Logging in: ${email}`, 'info');
+
+                const data = await makeRequest(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                });
+
+                log(`✅ Login successful!`, 'success');
+                log(`User subscription: ${JSON.stringify(data.user.subscription)}`, 'success');
+                
+                currentToken = data.token;
+                currentUser = data.user;
+                updateTokenDisplay();
+                updateUserDisplay();
+
+            } catch (error) {
+                log(`❌ Login failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function getProfile() {
+            try {
+                if (!currentToken) {
+                    log('❌ Not logged in!', 'error');
+                    return;
+                }
+
+                log('Getting profile...', 'info');
+
+                const data = await makeRequest(`${API_BASE}/auth/profile`);
+
+                log(`✅ Profile retrieved!`, 'success');
+                log(`Profile data: ${JSON.stringify(data, null, 2)}`, 'success');
+                
+                currentUser = data;
+                updateUserDisplay();
+
+            } catch (error) {
+                log(`❌ Get profile failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function updateSubscription() {
+            try {
+                if (!currentToken) {
+                    log('❌ Not logged in!', 'error');
+                    return;
+                }
+
+                const subscriptionType = document.getElementById('subscriptionType').value;
+                const billingCycle = document.getElementById('billingCycle').value;
+
+                log(`Updating subscription to ${subscriptionType} (${billingCycle})...`, 'info');
+
+                const data = await makeRequest(`${API_BASE}/auth/subscription`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ subscriptionType, billingCycle })
+                });
+
+                log(`✅ Subscription updated!`, 'success');
+                log(`New subscription: ${JSON.stringify(data.subscription, null, 2)}`, 'success');
+
+            } catch (error) {
+                log(`❌ Update subscription failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function getActiveSubscription() {
+            try {
+                if (!currentToken) {
+                    log('❌ Not logged in!', 'error');
+                    return;
+                }
+
+                log('Getting active subscription...', 'info');
+
+                const data = await makeRequest(`${API_BASE}/auth/subscription/active`);
+
+                log(`✅ Active subscription retrieved!`, 'success');
+                log(`Active subscription: ${JSON.stringify(data, null, 2)}`, 'success');
+
+            } catch (error) {
+                log(`❌ Get active subscription failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function getSubscriptionHistory() {
+            try {
+                if (!currentToken) {
+                    log('❌ Not logged in!', 'error');
+                    return;
+                }
+
+                log('Getting subscription history...', 'info');
+
+                const data = await makeRequest(`${API_BASE}/auth/subscription/history`);
+
+                log(`✅ Subscription history retrieved!`, 'success');
+                log(`History (${data.length} items): ${JSON.stringify(data, null, 2)}`, 'success');
+
+            } catch (error) {
+                log(`❌ Get subscription history failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function cancelSubscription() {
+            try {
+                if (!currentToken) {
+                    log('❌ Not logged in!', 'error');
+                    return;
+                }
+
+                log('Cancelling subscription...', 'warning');
+
+                const data = await makeRequest(`${API_BASE}/auth/subscription/cancel`, {
+                    method: 'POST'
+                });
+
+                log(`✅ Subscription cancelled!`, 'success');
+                log(`Cancelled subscription: ${JSON.stringify(data, null, 2)}`, 'success');
+
+            } catch (error) {
+                log(`❌ Cancel subscription failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function startTrial() {
+            try {
+                if (!currentToken) {
+                    log('❌ Not logged in!', 'error');
+                    return;
+                }
+
+                const trialDays = document.getElementById('trialDays').value;
+
+                log(`Starting ${trialDays}-day trial...`, 'info');
+
+                const data = await makeRequest(`${API_BASE}/auth/subscription/trial`, {
+                    method: 'POST',
+                    body: JSON.stringify({ trialDays: parseInt(trialDays) })
+                });
+
+                log(`✅ Trial started!`, 'success');
+                log(`Trial subscription: ${JSON.stringify(data, null, 2)}`, 'success');
+
+            } catch (error) {
+                log(`❌ Start trial failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function healthCheck() {
+            try {
+                log('Checking API health...', 'info');
+                
+                const data = await makeRequest(`${API_BASE}/health`);
+                
+                log(`✅ Health check passed!`, 'success');
+                log(`Health data: ${JSON.stringify(data, null, 2)}`, 'success');
+            } catch (error) {
+                log(`❌ Health check failed: ${error.message}`, 'error');
+            }
+        }
+
+        function logout() {
+            currentToken = null;
+            currentUser = null;
+            updateTokenDisplay();
+            updateUserDisplay();
+            log('🚪 Logged out successfully', 'info');
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Initialize
+        log('🚀 Subscription System Test Interface Ready', 'success');
+        log('Start by registering a new user or logging in with existing credentials', 'info');
+    </script>
+</body>
+</html>

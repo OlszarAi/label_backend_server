@@ -6,6 +6,14 @@ import { config } from '../config/config';
 import { createError } from '../middleware/errorHandler';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { registerSchema, loginSchema } from '../validation/auth.validation';
+import { 
+  createDefaultSubscription, 
+  getCurrentSubscription,
+  getSubscriptionHistory as getSubscriptionHistoryService,
+  cancelSubscription as cancelUserSubscription,
+  startTrialSubscription,
+  createSubscription
+} from '../services/subscription.service';
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -59,6 +67,9 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       }
     });
 
+    // Create default FREE subscription for new user
+    await createDefaultSubscription(user.id);
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
@@ -85,8 +96,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         OR: [
           { email: loginField },
           { username: loginField }
-        ],
-        isActive: true
+        ]
       }
     });
 
@@ -152,6 +162,9 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       });
     }
 
+    // Get current subscription
+    const subscription = await getCurrentSubscription(user.id);
+
     // Return user data and token
     res.status(200).json({
       success: true,
@@ -164,6 +177,10 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
           firstName: user.firstName,
           lastName: user.lastName,
           role: user.role,
+          subscriptionType: subscription?.type || 'FREE',
+          subscriptionStatus: subscription?.status || 'INACTIVE',
+          subscriptionStartDate: subscription?.startDate || null,
+          subscriptionEndDate: subscription?.endDate || null,
         },
         token,
         expiresAt: session.expiresAt,
@@ -241,6 +258,9 @@ export const getSessionStatus = async (req: AuthenticatedRequest, res: Response,
       throw createError('Session not found or expired', 401);
     }
 
+    // Get current subscription
+    const subscription = await getCurrentSubscription(session.user.id);
+
     res.status(200).json({
       success: true,
       message: 'Session is valid',
@@ -250,7 +270,13 @@ export const getSessionStatus = async (req: AuthenticatedRequest, res: Response,
           expiresAt: session.expiresAt,
           createdAt: session.createdAt,
         },
-        user: session.user,
+        user: {
+          ...session.user,
+          subscriptionType: subscription?.type || 'FREE',
+          subscriptionStatus: subscription?.status || 'INACTIVE',
+          subscriptionStartDate: subscription?.startDate || null,
+          subscriptionEndDate: subscription?.endDate || null,
+        },
         tokenValidUntil: session.expiresAt
       }
     });
@@ -270,7 +296,6 @@ export const profile = async (req: AuthenticatedRequest, res: Response, next: Ne
         firstName: true,
         lastName: true,
         role: true,
-        isActive: true,
         createdAt: true,
         updatedAt: true,
       }
@@ -280,9 +305,182 @@ export const profile = async (req: AuthenticatedRequest, res: Response, next: Ne
       throw createError('User not found', 404);
     }
 
+    // Get current subscription
+    const subscription = await getCurrentSubscription(user.id);
+
     res.status(200).json({
       success: true,
-      data: { user }
+      data: { 
+        user: {
+          ...user,
+          subscriptionType: subscription?.type || 'FREE',
+          subscriptionStatus: subscription?.status || 'INACTIVE',
+          subscriptionStartDate: subscription?.startDate || null,
+          subscriptionEndDate: subscription?.endDate || null,
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateSubscription = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { subscriptionType, subscriptionStatus, billingCycle, price } = req.body;
+
+    // Validate subscription type
+    const validTypes = ['FREE', 'STARTER', 'PROFESSIONAL', 'ENTERPRISE'];
+    const validStatuses = ['INACTIVE', 'ACTIVE', 'EXPIRED', 'CANCELLED', 'TRIAL'];
+    const validBillingCycles = ['MONTHLY', 'YEARLY'];
+
+    if (subscriptionType && !validTypes.includes(subscriptionType)) {
+      throw createError('Invalid subscription type', 400);
+    }
+
+    if (subscriptionStatus && !validStatuses.includes(subscriptionStatus)) {
+      throw createError('Invalid subscription status', 400);
+    }
+
+    if (billingCycle && !validBillingCycles.includes(billingCycle)) {
+      throw createError('Invalid billing cycle', 400);
+    }
+
+    // Calculate dates based on subscription type and billing cycle
+    let startDate = new Date();
+    let endDate = null;
+
+    if (subscriptionStatus === 'ACTIVE' && subscriptionType !== 'FREE') {
+      endDate = new Date();
+      if (billingCycle === 'YEARLY') {
+        endDate.setFullYear(endDate.getFullYear() + 1);
+      } else {
+        endDate.setMonth(endDate.getMonth() + 1);
+      }
+    }
+
+    // Create new subscription using service
+    const subscriptionData: any = {
+      userId: req.user!.id,
+      type: subscriptionType || 'FREE',
+      status: subscriptionStatus || 'ACTIVE',
+      startDate
+    };
+
+    if (billingCycle) {
+      subscriptionData.billingCycle = billingCycle;
+    }
+
+    if (price) {
+      subscriptionData.price = price;
+    }
+
+    if (endDate) {
+      subscriptionData.endDate = endDate;
+    }
+
+    const subscription = await createSubscription(subscriptionData);
+
+    // Get updated user data
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        updatedAt: true,
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Subscription updated successfully',
+      data: { 
+        user: {
+          ...user,
+          subscriptionType: subscription.type,
+          subscriptionStatus: subscription.status,
+          subscriptionStartDate: subscription.startDate,
+          subscriptionEndDate: subscription.endDate,
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getActiveSubscription = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const subscription = await getCurrentSubscription(req.user!.id);
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active subscription found'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: subscription
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getSubscriptionHistory = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const history = await getSubscriptionHistoryService(req.user!.id);
+
+    return res.status(200).json({
+      success: true,
+      data: history
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const cancelSubscription = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const cancelledSubscription = await cancelUserSubscription(req.user!.id);
+
+    if (!cancelledSubscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active subscription to cancel'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Subscription cancelled successfully',
+      data: cancelledSubscription
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const startTrial = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { trialDays = 7 } = req.body;
+
+    if (trialDays < 1 || trialDays > 90) {
+      throw createError('Trial days must be between 1 and 90', 400);
+    }
+
+    const trialSubscription = await startTrialSubscription(req.user!.id, trialDays);
+
+    res.status(201).json({
+      success: true,
+      message: 'Trial subscription created successfully',
+      data: trialSubscription
     });
   } catch (error) {
     next(error);

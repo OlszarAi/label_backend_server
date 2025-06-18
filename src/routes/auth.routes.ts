@@ -1,5 +1,16 @@
 import { Router } from 'express';
-import { register, login, logout, profile, getSessionStatus } from '../controllers/auth.controller';
+import { 
+    register, 
+    login, 
+    logout, 
+    profile, 
+    getSessionStatus, 
+    updateSubscription,
+    getActiveSubscription,
+    getSubscriptionHistory,
+    cancelSubscription,
+    startTrial
+} from '../controllers/auth.controller';
 import { validateAuth } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -12,5 +23,12 @@ router.post('/login', login);
 router.post('/logout', validateAuth, logout);
 router.get('/profile', validateAuth, profile);
 router.get('/session', validateAuth, getSessionStatus);
+
+// Subscription routes
+router.put('/subscription', validateAuth, updateSubscription);
+router.get('/subscription/active', validateAuth, getActiveSubscription);
+router.get('/subscription/history', validateAuth, getSubscriptionHistory);
+router.post('/subscription/cancel', validateAuth, cancelSubscription);
+router.post('/subscription/trial', validateAuth, startTrial);
 
 export { router as authRoutes };

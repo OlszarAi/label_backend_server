@@ -38,23 +38,21 @@ export const validateAuth = async (
       throw createError('Invalid token format', 401);
     }
 
-    // Check if user exists and is active
+    // Check if user exists
     const user = await prisma.user.findUnique({
       where: { 
-        id: decoded.userId,
-        isActive: true 
+        id: decoded.userId
       },
       select: {
         id: true,
         email: true,
         username: true,
-        role: true,
-        isActive: true
+        role: true
       }
     });
 
     if (!user) {
-      throw createError('User not found or inactive', 401);
+      throw createError('User not found', 401);
     }
 
     // Check if session exists and is valid
