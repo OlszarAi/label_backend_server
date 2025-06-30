@@ -30,70 +30,137 @@ Nowoczesny, skalowalny backend zbudowany z myślą o bezpieczeństwie, wydajnoś
 - **Morgan** - HTTP request logging
 - **dotenv** - Environment configuration
 
-## ⚡ Szybki start
+## ⚡ Szybki start i uruchamianie
 
 ### 📋 Wymagania
 - **Node.js 18+** 
 - **Docker** i **Docker Compose**
 - **Git**
+- **curl** i **jq** (opcjonalne, do testowania)
 
-### 🚀 **Instalacja i uruchomienie**
+### 🏗️ **Jak działa architektura**
 
-#### **Metoda 1: Docker (zalecane dla produkcji)**
+#### **🐳 Scenariusz 1: Pełny Docker (Produkcja)**
+```
+┌─────────────────────────────────────────────────────────┐
+│                Docker Compose Network                   │
+│  ┌─────────────────┐    ┌─────────────────────────────┐ │
+│  │  Backend        │    │  PostgreSQL                 │ │
+│  │  Container      │    │  Container                  │ │
+│  │                 │    │                             │ │
+│  │  • Node.js API  │◄──►│  • Database Storage         │ │
+│  │  • Port: 3001   │    │  • Port: 5432               │ │
+│  │  • Built App    │    │  • Persistent Volume        │ │
+│  │                 │    │  • Auto Health Checks       │ │
+│  └─────────────────┘    └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+        ↓ Exposed Ports ↓
+   Host: localhost:3001 ← API Access
+```
+
+#### **🔧 Scenariusz 2: Development (Rekomendowany)**
+```
+┌─────────────────────────────────────────────────────────┐
+│  Host System (Twój komputer)                           │
+│  ┌─────────────────┐    ┌─────────────────────────────┐ │
+│  │  Backend        │    │  PostgreSQL                 │ │
+│  │  Local Process  │    │  Docker Container           │ │
+│  │                 │    │                             │ │
+│  │  • tsx watch    │◄──►│  • Database Storage         │ │
+│  │  • Hot Reload   │    │  • Port: 5432               │ │
+│  │  • TypeScript   │    │  • Persistent Volume        │ │
+│  │  • Port: 3001   │    │  • label_postgres           │ │
+│  └─────────────────┘    └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+        ↑ Dev Benefits ↑
+   • Instant code changes
+   • Full debugging support
+   • TypeScript error checking
+   • Easy log viewing
+```
+
+### 🚀 **Komendy uruchamiania - NOWE I ULEPSZONE!**
+
+#### **🎯 Quick Start - Wszystko w jednej komendzie**
 ```bash
-# Sklonuj repozytorium
-git clone <repository-url>
-cd label_backend_server
+# 🚀 SUPER QUICK START - Development setup
+npm run setup
+# To robi: npm install + uruchom PostgreSQL + zastosuj schema
 
-# Skopiuj i edytuj konfigurację
-cp .env.example .env
-nano .env  # Ustaw bezpieczne hasła!
+# 🚀 SUPER QUICK START - Pełny Docker
+npm run setup:full
+# To robi: npm install + uruchom wszystko w Docker + build
+```
 
-# Uruchom wszystko jedną komendą
-docker-compose up -d
+#### **🔧 Development Mode (Rekomendowany)**
+```bash
+# Wariant 1: Automatyczny (robi wszystko za Ciebie)
+npm run dev:local
+# To robi: uruchom PostgreSQL w Docker + uruchom backend lokalnie
 
-# Sprawdź status
+# Wariant 2: Krok po kroku (jeśli chcesz kontrolować)
+npm run docker:postgres    # Tylko baza danych
+npm run dev                # Backend lokalnie z hot-reload
+```
+
+#### **🐳 Full Docker Mode (Produkcja)**
+```bash
+# Uruchom wszystko w Docker
+npm run dev:docker
+# lub klasycznie
+npm run docker:up
+
+# Z rebuildem (po zmianach w kodzie)
+npm run docker:rebuild
+```
+
+#### **🔍 Monitorowanie i diagnostyka**
+```bash
+# Sprawdź status aplikacji
+npm run health
+
+# Logi backendu
+npm run logs
+
+# Logi bazy danych
+npm run logs:db
+
+# Status kontenerów
 docker-compose ps
-docker-compose logs -f
 ```
 
-#### **Metoda 2: Development (lokalne uruchomienie)**
+#### **🧹 Zarządzanie i czyszczenie**
 ```bash
-# Przejdź do katalogu projektu
-cd label_backend_server
+# Zatrzymaj wszystko
+npm run docker:down
 
-# Zainstaluj zależności
-npm install
+# Reset bazy danych (usuwa wszystkie dane!)
+npm run reset:db
 
-# Skopiuj przykładową konfigurację
-cp .env.example .env
-# ⚠️ WAŻNE: Edytuj .env i ustaw bezpieczne hasła
-nano .env
-
-# Uruchom tylko PostgreSQL w Docker
-docker-compose up -d postgres
-
-# Zastosuj schema bazy danych
-npm run db:push
-
-# Uruchom backend w trybie deweloperskim
-npm run dev
+# Pełne czyszczenie (usuwa wszystko łącznie z volumes)
+npm run docker:clean
 ```
 
-#### **Metoda 3: Production Build**
-```bash
-# Zbuduj aplikację
-npm run build
+### 🎛️ **Dostępne tryby uruchamiania**
 
-# Uruchom w trybie produkcyjnym
-npm start
-```
+| Komenda | PostgreSQL | Backend | Użycie | Hot Reload |
+|---------|------------|---------|--------|------------|
+| `npm run dev:local` | 🐳 Docker | 💻 Local | **Development** | ✅ Tak |
+| `npm run dev:docker` | 🐳 Docker | 🐳 Docker | Production Test | ❌ Nie |
+| `npm run setup` | 🐳 Docker | 💻 Manual | Quick Setup | Manual |
+| `npm run setup:full` | 🐳 Docker | 🐳 Docker | Full Setup | ❌ Nie |
 
 ### ✅ **Weryfikacja instalacji**
-Po uruchomieniu sprawdź:
-- **Backend:** http://localhost:3001/health
-- **API Status:** http://localhost:3001/health/ping
-- **Database GUI:** `npm run db:studio` (http://localhost:5555)
+Po uruchomieniu sprawdź automatycznie:
+```bash
+# Comprehensive health check
+npm run health
+```
+
+Lub ręcznie:
+- **Backend Health:** http://localhost:3001/health
+- **Quick Ping:** http://localhost:3001/health/ping
+- **Database GUI:** `npm run db:studio` → http://localhost:5555
 
 ## 📊 API Documentation
 
@@ -402,35 +469,153 @@ label_backend_server/
 └── 📊 postgres-data/         # PostgreSQL data volume (auto-created)
 ```
 
-### 🔄 **Request Flow**
+### 🏗️ **Szczegółowa architektura działania**
+
+#### **🔄 Cykl życia żądania HTTP**
 ```
-Client Request
-      ↓
-[Express Middleware Stack]
-      ↓
-  Security Layer (Helmet, CORS)
-      ↓
-  Rate Limiting
-      ↓
-  Request Logging (Morgan)
-      ↓
-  JSON Parsing
-      ↓
-[Route Handler]
-      ↓
-  Input Validation (Joi)
-      ↓
-  Authentication (JWT)
-      ↓
-[Controller Logic]
-      ↓
-  Database Operations (Prisma)
-      ↓
-[Response Formation]
-      ↓
-  Error Handling
-      ↓
-    JSON Response
+1. 📥 Klient wysyła żądanie HTTP
+        ↓
+2. 🛡️ Middleware Security Stack
+   • Helmet (security headers)
+   • CORS (cross-origin protection)
+   • Rate Limiting (DDoS protection)
+        ↓
+3. 📊 Request Logging (Morgan)
+        ↓
+4. 🔍 Request Parsing (JSON/URL-encoded)
+        ↓
+5. 🛣️ Route Matching (Express Router)
+        ↓
+6. ✅ Input Validation (Joi schemas)
+        ↓
+7. 🔐 Authentication (JWT verification)
+        ↓
+8. 🎮 Controller Logic
+        ↓
+9. 🗄️ Database Operations (Prisma ORM)
+        ↓
+10. 📤 Response Formation
+        ↓
+11. 🚨 Error Handling (Global middleware)
+        ↓
+12. 📤 JSON Response do klienta
+```
+
+#### **🐳 Docker Network Architecture**
+```
+┌─────────────────────────────────────────────────────────┐
+│  Docker Compose Network: label_network                  │
+│                                                         │
+│  ┌─────────────────┐    ┌─────────────────────────────┐ │
+│  │  Backend        │    │  PostgreSQL                 │ │
+│  │  label_backend  │    │  label_postgres             │ │
+│  │                 │    │                             │ │
+│  │  Environment:   │    │  Environment:               │ │
+│  │  • NODE_ENV     │    │  • POSTGRES_DB=label_db     │ │
+│  │  • JWT_SECRET   │◄──►│  • POSTGRES_USER=label_user │ │
+│  │  • DATABASE_URL │    │  • POSTGRES_PASSWORD=***   │ │
+│  │                 │    │                             │ │
+│  │  Ports:         │    │  Ports:                     │ │
+│  │  • 3001:3001    │    │  • 5432:5432                │ │
+│  │                 │    │                             │ │
+│  │  Volumes:       │    │  Volumes:                   │ │
+│  │  • ./uploads    │    │  • postgres_data:/var/lib/  │ │
+│  │                 │    │    postgresql/data          │ │
+│  └─────────────────┘    └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+          ↑                              ↑
+    Host: 3001                    Host: 5432
+    (API Access)              (DB Connection)
+```
+
+#### **🔧 Development vs Production Setup**
+
+**🛠️ Development Mode:**
+```
+Host System (localhost)
+├── 🖥️ Backend Process
+│   ├── tsx watch src/index.ts
+│   ├── TypeScript hot-reload
+│   ├── Source maps for debugging
+│   └── Direct file watching
+├── 🐳 PostgreSQL Container
+│   ├── docker-compose up -d postgres
+│   ├── Development data volume
+│   └── Easy reset/cleanup
+└── 🔗 Connection: localhost:5432
+```
+
+**🏭 Production Mode:**
+```
+Docker Compose Stack
+├── 🐳 Backend Container
+│   ├── Built JavaScript (dist/)
+│   ├── Production optimizations
+│   ├── Health checks enabled
+│   └── Automatic restarts
+├── 🐳 PostgreSQL Container  
+│   ├── Persistent data volume
+│   ├── Backup-ready setup
+│   └── Production security
+└── 🌐 Internal network communication
+```
+
+#### **📊 Database Schema & Relations**
+```sql
+┌─────────────────────────────────────────────────────────┐
+│                    Database: label_db                   │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌─────────────────┐    ┌─────────────────────────────┐ │
+│  │     Users       │    │         Sessions            │ │
+│  ├─────────────────┤    ├─────────────────────────────┤ │
+│  │ id (cuid)       │◄───┤ userId (FK)                 │ │
+│  │ email (unique)  │  1 │ token (unique)              │ │
+│  │ username(unique)│  : │ refreshToken                │ │
+│  │ password (hash) │  n │ expiresAt                   │ │
+│  │ firstName       │    │ createdAt                   │ │
+│  │ lastName        │    │ updatedAt                   │ │
+│  │ role (enum)     │    │ isActive                    │ │
+│  │ isActive        │    └─────────────────────────────┘ │
+│  │ createdAt       │                                    │
+│  │ updatedAt       │                                    │
+│  └─────────────────┘                                    │
+│                                                         │
+│  Indexes:                                               │
+│  • users_email_unique                                   │
+│  • users_username_unique                                │
+│  • sessions_token_unique                                │
+│  • sessions_userId_idx                                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### **🔐 Security Flow**
+```
+Registration Flow:
+1. Client POST /api/auth/register
+2. Joi validation (email, password strength)
+3. Check email/username uniqueness
+4. bcrypt password hashing (12 rounds)
+5. Create user in database
+6. Generate JWT token
+7. Create session record
+8. Return user data + token
+
+Login Flow:
+1. Client POST /api/auth/login  
+2. Joi validation
+3. Find user (email or username)
+4. bcrypt password verification
+5. Generate new JWT token
+6. Update/create session
+7. Return user data + token
+
+Protected Endpoint:
+1. Extract JWT from Authorization header
+2. Verify JWT signature + expiration
+3. Check session in database
+4. Attach user to request object
+5. Proceed to route handler
 ```
 
 ### 🎯 **Design Patterns**
@@ -613,29 +798,74 @@ docker exec label_postgres pg_isready -U label_user
 docker-compose ps
 ```
 
-### 🔧 **Development Scripts**
+### 🔧 **Development Scripts - KOMPLETNA LISTA**
 
-### 🔧 **Development Scripts**
+#### **🚀 Uruchamianie**
 ```bash
-# Development
-npm run dev          # Uruchom w trybie deweloperskim (auto-reload)
-npm run build        # Zbuduj aplikację do folderu dist/
-npm run start        # Uruchom zbudowaną aplikację
+# === QUICK START ===
+npm run setup           # Szybka konfiguracja: install + PostgreSQL + schema
+npm run setup:full      # Pełna konfiguracja: wszystko w Docker
+npm run dev:local       # Development: PostgreSQL w Docker + backend lokalnie
+npm run dev:docker      # Development: wszystko w Docker
 
-# Database
-npm run db:generate  # Regeneruj Prisma client
-npm run db:push      # Zastosuj schema do bazy (development)
-npm run db:migrate   # Utwórz i zastosuj migrację
-npm run db:studio    # Otwórz Prisma Studio (GUI)
+# === PODSTAWOWE ===
+npm run dev             # Backend lokalnie z hot-reload (wymaga PostgreSQL)
+npm run build           # Zbuduj aplikację do production
+npm run start           # Uruchom zbudowaną aplikację
 
-# Docker
-npm run docker:up    # docker-compose up -d
-npm run docker:down  # docker-compose down
-npm run docker:logs  # docker-compose logs -f
+# === DOCKER MANAGEMENT ===
+npm run docker:up       # Uruchom wszystkie kontenery
+npm run docker:down     # Zatrzymaj wszystkie kontenery
+npm run docker:postgres # Uruchom tylko PostgreSQL
+npm run docker:backend  # Uruchom tylko backend container
+npm run docker:rebuild  # Rebuild i restart wszystkich kontenerów
+npm run docker:clean    # Usuń wszystko (containers + volumes + images)
 
-# Code Quality
-npm run lint         # Sprawdź kod z ESLint
-npm run test         # Uruchom testy (jeśli skonfigurowane)
+# === DATABASE ===
+npm run db:generate     # Regeneruj Prisma client po zmianach schema
+npm run db:push         # Zastosuj schema do bazy (development)
+npm run db:migrate      # Utwórz i zastosuj migrację (production)
+npm run db:studio       # Otwórz Prisma Studio (GUI do bazy)
+npm run reset:db        # Reset bazy danych (usuwa wszystkie dane!)
+
+# === MONITORING & DEBUGGING ===
+npm run health          # Sprawdź status aplikacji
+npm run logs            # Logi backendu
+npm run logs:db         # Logi PostgreSQL
+npm run docker:logs     # Wszystkie logi Docker
+
+# === CODE QUALITY ===
+npm run lint            # Sprawdź kod z ESLint
+npm run test            # Uruchom testy
+```
+
+#### **🎯 Typowe scenariusze użycia**
+
+**Pierwszy raz uruchamiasz projekt:**
+```bash
+npm run setup          # Wszystko w jednej komendzie!
+```
+
+**Codzienne developement:**
+```bash
+npm run dev:local      # PostgreSQL w Docker + backend lokalnie
+```
+
+**Testowanie produkcji lokalnie:**
+```bash
+npm run dev:docker     # Wszystko w Docker jak na produkcji
+```
+
+**Problem z bazą danych:**
+```bash
+npm run reset:db       # Reset bazy i restart
+npm run db:studio      # Otwórz GUI do debugowania
+```
+
+**Deployment na serwer:**
+```bash
+npm run build          # Zbuduj aplikację
+npm run docker:up      # Uruchom na serwerze
 ```
 
 ### ⚙️ **Environment Configuration**
@@ -672,63 +902,203 @@ FRONTEND_URL=http://localhost:3000
 - ✅ **Configure SSL/TLS**
 - ✅ **Setup monitoring alerts**
 
-## 🚨 Troubleshooting
+## 🚨 Troubleshooting & Diagnostyka
 
-### 🔍 **Częste problemy**
+### 🔍 **Automatyczne narzędzia diagnostyczne**
 
-#### **Problem: Database connection failed**
+#### **🏥 Quick Health Check**
+```bash
+# Sprawdź czy wszystko działa jedną komendą
+npm run health
+
+# Oczekiwana odpowiedź:
+# {
+#   "status": "healthy",
+#   "timestamp": "2025-06-19T...",
+#   "database": "connected",
+#   "memory": {...}
+# }
+```
+
+#### **📊 Status kontenerów**
+```bash
+# Sprawdź status wszystkich kontenerów
+docker-compose ps
+
+# Przykład prawidłowej odpowiedzi:
+#      Name                Command              State           Ports         
+# ---------------------------------------------------------------------------
+# label_backend    docker-entrypoint.sh node   Up      0.0.0.0:3001->3001/tcp
+# label_postgres   docker-entrypoint.sh         Up      0.0.0.0:5432->5432/tcp
+```
+
+### 🚨 **Częste problemy i rozwiązania**
+
+#### **❌ Problem: "Database connection failed"**
 ```bash
 # Sprawdź czy PostgreSQL działa
-docker-compose ps
-docker exec label_postgres pg_isready -U label_user
+docker-compose ps | grep postgres
 
-# Sprawdź logi
-docker-compose logs postgres
+# Jeśli nie działa, uruchom ponownie
+npm run docker:postgres
 
-# Reset database container
-docker-compose down
-docker volume rm label_backend_server_postgres_data
-docker-compose up -d postgres
+# Sprawdź logi bazy danych
+npm run logs:db
+
+# Sprawdź połączenie z bazą
+docker exec -it label_postgres pg_isready -U label_user -d label_db
+
+# W ostateczności - reset bazy
+npm run reset:db
 ```
 
-#### **Problem: Port already in use**
+#### **❌ Problem: "Port 3001 already in use"**
 ```bash
 # Znajdź proces używający portu
-lsof -i :3001
-netstat -tulpn | grep :3001
+sudo lsof -i :3001
+# lub
+sudo ss -tulpn | grep :3001
 
 # Zabij proces
-kill -9 <PID>
+sudo kill -9 <PID>
 
 # Lub zmień port w .env
-PORT=3002
+echo "PORT=3002" >> .env
 ```
 
-#### **Problem: CORS errors**
+#### **❌ Problem: "Port 5432 already in use"**
+```bash
+# Sprawdź co używa portu PostgreSQL
+sudo lsof -i :5432
+
+# Jeśli to inny kontener PostgreSQL
+docker ps | grep postgres
+docker stop <container_name>
+docker rm <container_name>
+
+# Uruchom nasz PostgreSQL
+npm run docker:postgres
+```
+
+#### **❌ Problem: "CORS errors"**
 ```bash
 # Sprawdź FRONTEND_URL w .env
-echo $FRONTEND_URL
+grep FRONTEND_URL .env
 
-# Dodaj domenę do CORS config w src/app.ts
-origin: ['http://localhost:3000', 'https://yourdomain.com']
+# Powinna być:
+# FRONTEND_URL=http://localhost:3000
+
+# Jeśli używasz innej domeny, zaktualizuj:
+echo "FRONTEND_URL=http://localhost:3000" >> .env
+npm run dev:local  # Restart backend
 ```
 
-#### **Problem: JWT token errors**
+#### **❌ Problem: "JWT token invalid"**
 ```bash
 # Sprawdź czy JWT_SECRET jest ustawiony
-echo $JWT_SECRET
+grep JWT_SECRET .env
 
-# Regeneruj secret
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+# Jeśli brak, wygeneruj nowy
+echo "JWT_SECRET=$(node -e 'console.log(require("crypto").randomBytes(64).toString("hex"))')" >> .env
+
+# Restart backend
+npm run dev:local
 ```
 
-### 📞 **Wsparcie**
-W przypadku problemów sprawdź:
-1. **Application logs:** `docker-compose logs -f backend`
-2. **Database logs:** `docker-compose logs postgres`
-3. **Container status:** `docker-compose ps`
-4. **Database connectivity:** `npm run db:studio`
-5. **Health endpoint:** `curl http://localhost:3001/health`
+#### **❌ Problem: Backend nie odpowiada**
+```bash
+# Sprawdź czy backend działa
+ps aux | grep "tsx watch"
+
+# Sprawdź porty
+sudo netstat -tulpn | grep :3001
+
+# Sprawdź logi
+npm run logs
+
+# Force restart
+npm run docker:down
+npm run dev:local
+```
+
+### 🔍 **Zaawansowana diagnostyka**
+
+#### **📋 Pełny system check**
+```bash
+#!/bin/bash
+echo "=== LABEL BACKEND DIAGNOSTICS ==="
+
+echo "1. Node.js version:"
+node --version
+
+echo "2. Docker status:"
+docker --version
+docker-compose --version
+
+echo "3. Container status:"
+docker-compose ps
+
+echo "4. Port usage:"
+sudo lsof -i :3001 -i :5432 2>/dev/null || echo "Ports available"
+
+echo "5. Environment variables:"
+echo "NODE_ENV: $NODE_ENV"
+echo "POSTGRES_DB: $POSTGRES_DB"
+
+echo "6. Health check:"
+curl -s http://localhost:3001/health/ping 2>/dev/null || echo "Backend not responding"
+
+echo "7. Database connectivity:"
+docker exec -it label_postgres pg_isready -U label_user -d label_db 2>/dev/null || echo "Database not accessible"
+```
+
+#### **🗂️ Log analysis**
+```bash
+# Backend logs z filtrowaniem
+npm run logs | grep -i error
+
+# Database logs z timestampami
+npm run logs:db | tail -50
+
+# System logs
+journalctl -u docker --since "1 hour ago" | grep label
+```
+
+#### **🧹 Nuclear option - pełny reset**
+```bash
+# UWAGA: To usuwa WSZYSTKIE dane!
+npm run docker:clean
+rm -rf node_modules package-lock.json
+npm install
+npm run setup
+```
+
+### 📞 **Wsparcie i debugging**
+
+#### **📋 Checklist przed zgłoszeniem problemu**
+- [ ] Sprawdziłem `npm run health`
+- [ ] Sprawdziłem `docker-compose ps`
+- [ ] Sprawdziłem logi: `npm run logs`
+- [ ] Sprawdziłem plik `.env`
+- [ ] Próbowałem restartu: `npm run dev:local`
+
+#### **🔧 Przydatne komendy debug**
+```bash
+# Sprawdź wszystkie zmienne środowiskowe
+printenv | grep -E "(NODE_ENV|POSTGRES|JWT|PORT)"
+
+# Sprawdź schemat bazy danych
+npm run db:studio  # Otwórz w przeglądarce
+
+# Test bezpośredniego połączenia z bazą
+docker exec -it label_postgres psql -U label_user -d label_db -c "\dt"
+
+# Sprawdź wykorzystanie portów
+sudo ss -tulpn | grep -E "(3001|5432)"
+
+# Monitor logów w czasie rzeczywistym
+docker-compose logs -f --tail=50
+```
 
 ## 🎯 Roadmap & Future Features
 
@@ -749,6 +1119,170 @@ W przypadku problemów sprawdź:
 - 📊 **Horizontal scaling** - Load balancer support
 - 🏪 **Caching layer** - Redis integration
 
+## 🎯 Przykłady użycia
+
+### 🚀 **Typowe scenariusze developmentu**
+
+#### **Scenario 1: Pierwszy dzień w projekcie**
+```bash
+# Sklonuj repozytorium
+git clone <repo-url>
+cd label_backend_server
+
+# Jednorazowa konfiguracja
+npm run setup
+
+# Sprawdź czy działa
+npm run health
+
+# Otwórz GUI bazy danych
+npm run db:studio
+```
+
+#### **Scenario 2: Codzienna praca**
+```bash
+# Rano - uruchom development
+npm run dev:local
+
+# Sprawdź w przeglądarce czy działa
+# http://localhost:3001/health
+
+# Pracuj nad kodem... (hot-reload automatyczny)
+
+# Wieczorem - zatrzymaj
+npm run docker:down
+```
+
+#### **Scenario 3: Testowanie produkcji lokalnie**
+```bash
+# Zbuduj i uruchom jak na produkcji
+npm run build
+npm run dev:docker
+
+# Testuj API
+npm run health
+```
+
+#### **Scenario 4: Problemy z bazą danych**
+```bash
+# Reset bazy
+npm run reset:db
+
+# Sprawdź schemat
+npm run db:studio
+
+# Zastosuj nowe migracje
+npm run db:migrate
+```
+
+### 📚 **Gotowe snippety do testowania**
+
+#### **🔧 cURL commands**
+```bash
+# Health check
+curl http://localhost:3001/health | jq
+
+# Rejestracja użytkownika
+curl -X POST http://localhost:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "username": "testuser",
+    "password": "TestPass123!",
+    "firstName": "Jan",
+    "lastName": "Kowalski"
+  }'
+
+# Logowanie
+curl -X POST http://localhost:3001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "login": "test@example.com",
+    "password": "TestPass123!"
+  }'
+
+# Profil użytkownika (wymaga token)
+TOKEN="your-jwt-token-here"
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:3001/api/auth/profile
+```
+
+#### **🐳 Docker management**
+```bash
+# Sprawdź co działa
+docker-compose ps
+
+# Logi w czasie rzeczywistym
+docker-compose logs -f
+
+# Restart jednego serwisu
+docker-compose restart backend
+
+# Buduj bez cache
+docker-compose build --no-cache backend
+```
+
+### 🔄 **Typowe workflow'y**
+
+#### **Development Workflow**
+```bash
+1. npm run dev:local       # Uruchom dev environment
+2. # Kod zmianiona
+3. # Auto-reload działa
+4. npm run health          # Test czy działa
+5. git add . && git commit # Commit zmian
+```
+
+#### **Testing Workflow**
+```bash
+1. npm run dev:docker      # Uruchom jak na produkcji
+2. npm run health          # Test podstawowy
+3. # Uruchom testy funkcjonalne
+4. npm run docker:down     # Zatrzymaj po testach
+```
+
+#### **Production Deployment**
+```bash
+1. npm run build           # Zbuduj aplikację
+2. # Skopiuj na serwer
+3. npm run setup:full      # Uruchom na serwerze
+4. npm run health          # Sprawdź czy działa
+5. # Skonfiguruj reverse proxy
+```
+
+### 💡 **Pro Tips**
+
+#### **🎯 Przydatne aliasy dla .bashrc**
+```bash
+# Dodaj do ~/.bashrc
+alias label-start='cd ~/path/to/label_backend_server && npm run dev:local'
+alias label-stop='cd ~/path/to/label_backend_server && npm run docker:down'
+alias label-health='cd ~/path/to/label_backend_server && npm run health'
+alias label-logs='cd ~/path/to/label_backend_server && npm run logs'
+alias label-db='cd ~/path/to/label_backend_server && npm run db:studio'
+```
+
+#### **📊 Monitoring skript**
+```bash
+#!/bin/bash
+# Zapisz jako monitor.sh
+while true; do
+    clear
+    echo "=== LABEL BACKEND STATUS ==="
+    echo "Time: $(date)"
+    echo ""
+    echo "Containers:"
+    docker-compose ps
+    echo ""
+    echo "Health:"
+    curl -s http://localhost:3001/health/ping || echo "❌ Backend down"
+    echo ""
+    echo "Memory usage:"
+    docker stats --no-stream label_backend label_postgres
+    sleep 5
+done
+```
+
 ---
 
 ## 💡 **Podsumowanie**
@@ -756,11 +1290,29 @@ W przypadku problemów sprawdź:
 **Label Backend Server** to kompletne, enterprise-grade rozwiązanie oferujące:**
 
 - 🔒 **Enterprise Security** - JWT, bcrypt, rate limiting, CORS
-- 🚀 **Production Ready** - Docker, monitoring, error handling
+- 🚀 **Production Ready** - Docker, monitoring, error handling  
 - 🛠️ **Developer Friendly** - TypeScript, Prisma, comprehensive docs
 - ⚡ **High Performance** - Connection pooling, optimized queries
 - 🧪 **Fully Testable** - Multiple testing interfaces
 - 🔧 **Easy Deployment** - Docker Compose one-command setup
+
+### 🎯 **Quick Reference**
+```bash
+# Najprostszy start
+npm run setup && npm run dev:local
+
+# Sprawdź status
+npm run health
+
+# Logi
+npm run logs
+
+# GUI bazy danych
+npm run db:studio
+
+# Zatrzymaj
+npm run docker:down
+```
 
 **Ready for production use! 🎉**
 
