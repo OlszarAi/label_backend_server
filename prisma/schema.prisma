@@ -27,6 +27,7 @@ model User {
   // Relations
   sessions      Session[]
   subscriptions Subscription[]
+  projects      Project[]
 
   @@map("users")
 }
@@ -66,6 +67,49 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  icon        String?  // URL or identifier for project icon
+  color       String   @default("#3b82f6") // Hex color for project theme
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  labels Label[]
+
+  @@map("projects")
+}
+
+model Label {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  projectId   String
+  fabricData  Json?      // Fabric.js canvas JSON data
+  thumbnail   String?    // Base64 or URL to label thumbnail
+  width       Float      @default(100) // Label width in mm
+  height      Float      @default(50)  // Label height in mm
+  status      LabelStatus @default(DRAFT)
+  version     Int        @default(1)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("labels")
+}
+
+enum LabelStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
 enum UserRole {
