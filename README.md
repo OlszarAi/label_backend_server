@@ -16,7 +16,7 @@ Nowoczesny, skalowalny backend zbudowany z myślą o bezpieczeństwie, wydajnoś
 
 ### 🔐 **Security Stack**
 - **JWT (JSON Web Tokens)** - Stateless authentication
-- **bcrypt** - Password hashing (12 rounds)
+- **bcryptjs** - Password hashing (12 rounds)
 - **Helmet** - Security headers
 - **CORS** - Cross-origin protection
 - **Rate Limiting** - DDoS protection
@@ -29,6 +29,8 @@ Nowoczesny, skalowalny backend zbudowany z myślą o bezpieczeństwie, wydajnoś
 - **Prisma Studio** - Database GUI
 - **Morgan** - HTTP request logging
 - **dotenv** - Environment configuration
+- **Compression** - Response compression
+- **Jest** - Testing framework
 
 ## ⚡ Szybki start i uruchamianie
 
@@ -249,6 +251,107 @@ Wszystkie chronione endpointy wymagają nagłówka:
 Authorization: Bearer <jwt-token>
 ```
 
+### 📋 **Projekty API**
+
+#### **Lista projektów użytkownika** (wymagana autoryzacja)
+```http
+GET /api/projects
+Authorization: Bearer <jwt-token>
+```
+
+#### **Tworzenie nowego projektu** (wymagana autoryzacja)
+```http
+POST /api/projects
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+
+{
+  "name": "Mój Projekt",
+  "description": "Opis projektu",
+  "color": "#3b82f6",
+  "icon": "project-icon-url"
+}
+```
+
+#### **Szczegóły projektu** (wymagana autoryzacja)
+```http
+GET /api/projects/{id}
+Authorization: Bearer <jwt-token>
+```
+
+#### **Aktualizacja projektu** (wymagana autoryzacja)
+```http
+PUT /api/projects/{id}
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+
+{
+  "name": "Zaktualizowany Projekt",
+  "description": "Nowy opis",
+  "color": "#ef4444"
+}
+```
+
+#### **Usuwanie projektu** (wymagana autoryzacja)
+```http
+DELETE /api/projects/{id}
+Authorization: Bearer <jwt-token>
+```
+
+### 🏷️ **Labele API**
+
+#### **Lista labeli w projekcie** (wymagana autoryzacja)
+```http
+GET /api/projects/{projectId}/labels
+Authorization: Bearer <jwt-token>
+```
+
+#### **Tworzenie nowego labela** (wymagana autoryzacja)
+```http
+POST /api/projects/{projectId}/labels
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+
+{
+  "name": "Nowy Label",
+  "description": "Opis labela",
+  "width": 100,
+  "height": 50,
+  "fabricData": {...}
+}
+```
+
+#### **Szczegóły labela** (wymagana autoryzacja)
+```http
+GET /api/projects/labels/{labelId}
+Authorization: Bearer <jwt-token>
+```
+
+#### **Aktualizacja labela** (wymagana autoryzacja)
+```http
+PUT /api/projects/labels/{labelId}
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+
+{
+  "name": "Zaktualizowany Label",
+  "fabricData": {...},
+  "status": "PUBLISHED"
+}
+```
+
+#### **Duplikowanie labela** (wymagana autoryzacja)
+```http
+POST /api/projects/labels/{labelId}/duplicate
+Authorization: Bearer <jwt-token>
+```
+
+#### **Usuwanie labela** (wymagana autoryzacja)
+```http
+DELETE /api/projects/labels/{labelId}
+Authorization: Bearer <jwt-token>
+```
+
 ### 📝 **Kody odpowiedzi**
 - `200` - Sukces
 - `201` - Zasób utworzony
@@ -431,7 +534,7 @@ sudo crontab -e
 # Add: 0 12 * * * /usr/bin/certbot renew --quiet
 ```
 
-## 📁 Architektura Projektu
+### 📁 Architektura Projektu
 
 ### 🏗️ **Struktura katalogów**
 ```
@@ -442,10 +545,8 @@ label_backend_server/
 ├── ⚙️ .env.example           # Przykład konfiguracji
 ├── 📦 package.json           # Dependencies i scripts NPM
 ├── 🔧 tsconfig.json          # Konfiguracja TypeScript
-├── 🧪 test-connection.html   # Standalone test interface
 ├── 📚 README.md              # Ta dokumentacja
-├── 📊 IMPLEMENTATION_SUMMARY.md  # Podsumowanie implementacji
-├── 🗄️ prisma/
+├── ️ prisma/
 │   ├── schema.prisma         # Database schema definition
 │   └── migrations/           # Database migrations (auto-generated)
 ├── 📂 src/                   # Kod źródłowy aplikacji
@@ -454,19 +555,27 @@ label_backend_server/
 │   ├── ⚙️ config/
 │   │   └── config.ts         # Centralna konfiguracja aplikacji
 │   ├── 🎮 controllers/       # Business logic handlers
-│   │   └── auth.controller.ts # Authentication logic
+│   │   ├── auth.controller.ts     # Authentication logic
+│   │   └── project.controller.ts  # Project & Label logic
 │   ├── 🛡️ middleware/        # Express middleware
 │   │   ├── auth.middleware.ts     # JWT verification
 │   │   ├── errorHandler.ts       # Global error handling
 │   │   └── notFoundHandler.ts    # 404 handler
 │   ├── 🛣️ routes/            # API route definitions
 │   │   ├── auth.routes.ts         # Authentication routes
-│   │   └── health.routes.ts       # Health check routes
+│   │   ├── health.routes.ts       # Health check routes
+│   │   └── project.routes.ts      # Project & Label routes
 │   ├── 🔌 services/          # External service integrations
-│   │   └── database.service.ts    # Prisma client management
+│   │   ├── database.service.ts    # Prisma client management
+│   │   └── subscription.service.ts # Subscription management
+│   ├── 📝 scripts/           # Utility scripts
+│   │   └── cleanDatabase.ts       # Database cleanup utilities
 │   └── ✅ validation/        # Input validation schemas
-│       └── auth.validation.ts     # Auth input validation
-└── 📊 postgres-data/         # PostgreSQL data volume (auto-created)
+│       ├── auth.validation.ts     # Auth input validation
+│       └── project.validation.ts  # Project input validation
+├── 📊 postgres-data/         # PostgreSQL data volume (auto-created)
+├── 📁 uploads/               # File uploads directory
+└── 🗃️ dist/                 # Compiled JavaScript (production)
 ```
 
 ### 🏗️ **Szczegółowa architektura działania**
@@ -490,7 +599,7 @@ label_backend_server/
         ↓
 7. 🔐 Authentication (JWT verification)
         ↓
-8. 🎮 Controller Logic
+8. 🎮 Controller Logic (Auth/Project/Label)
         ↓
 9. 🗄️ Database Operations (Prisma ORM)
         ↓
@@ -560,32 +669,67 @@ Docker Compose Stack
 └── 🌐 Internal network communication
 ```
 
-#### **📊 Database Schema & Relations**
+### �️ **Database Schema & Relations**
 ```sql
 ┌─────────────────────────────────────────────────────────┐
 │                    Database: label_db                   │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │  ┌─────────────────┐    ┌─────────────────────────────┐ │
-│  │     Users       │    │         Sessions            │ │
+│  │     Users       │    │       Subscriptions         │ │
 │  ├─────────────────┤    ├─────────────────────────────┤ │
 │  │ id (cuid)       │◄───┤ userId (FK)                 │ │
-│  │ email (unique)  │  1 │ token (unique)              │ │
-│  │ username(unique)│  : │ refreshToken                │ │
-│  │ password (hash) │  n │ expiresAt                   │ │
-│  │ firstName       │    │ createdAt                   │ │
-│  │ lastName        │    │ updatedAt                   │ │
-│  │ role (enum)     │    │ isActive                    │ │
-│  │ isActive        │    └─────────────────────────────┘ │
-│  │ createdAt       │                                    │
-│  │ updatedAt       │                                    │
+│  │ email (unique)  │  1 │ type (enum)                 │ │
+│  │ username(unique)│  : │ status (enum)               │ │
+│  │ password (hash) │  n │ startDate                   │ │
+│  │ firstName       │    │ endDate                     │ │
+│  │ lastName        │    │ billingCycle (enum)         │ │
+│  │ role (enum)     │    │ price                       │ │
+│  │ createdAt       │    │ currency                    │ │
+│  │ updatedAt       │    └─────────────────────────────┘ │
 │  └─────────────────┘                                    │
+│          │                                              │
+│          │     ┌─────────────────────────────────────┐  │
+│          │     │           Sessions                  │  │
+│          │     ├─────────────────────────────────────┤  │
+│          └────►│ userId (FK)                         │  │
+│            1:n │ token (unique)                      │  │
+│                │ refreshToken                        │  │
+│                │ expiresAt                           │  │
+│                │ createdAt                           │  │
+│                │ updatedAt                           │  │
+│                └─────────────────────────────────────┘  │
+│                                                         │
+│  ┌─────────────────┐    ┌─────────────────────────────┐ │
+│  │    Projects     │    │          Labels             │ │
+│  ├─────────────────┤    ├─────────────────────────────┤ │
+│  │ id (cuid)       │◄───┤ projectId (FK)              │ │
+│  │ name            │  1 │ name                        │ │
+│  │ description     │  : │ description                 │ │
+│  │ icon            │  n │ fabricData (JSON)           │ │
+│  │ color           │    │ thumbnail                   │ │
+│  │ userId (FK)     │    │ width                       │ │
+│  │ createdAt       │    │ height                      │ │
+│  │ updatedAt       │    │ status (enum)               │ │
+│  └─────────────────┘    │ version                     │ │
+│          │               │ createdAt                   │ │
+│          │               │ updatedAt                   │ │
+│          │               └─────────────────────────────┘ │
+│          │                                              │
+│          └──────────────────────────────────────────────┘
+│                        Users 1:n Projects                │
+│                                                         │
+│  Enums:                                                 │
+│  • UserRole: USER, ADMIN, SUPER_ADMIN                   │
+│  • SubscriptionType: FREE, STARTER, PROFESSIONAL, ENTERPRISE │
+│  • SubscriptionStatus: INACTIVE, ACTIVE, EXPIRED, CANCELLED, TRIAL │
+│  • BillingCycle: MONTHLY, YEARLY                        │
+│  • LabelStatus: DRAFT, PUBLISHED, ARCHIVED              │
 │                                                         │
 │  Indexes:                                               │
-│  • users_email_unique                                   │
-│  • users_username_unique                                │
-│  • sessions_token_unique                                │
-│  • sessions_userId_idx                                  │
+│  • users_email_unique, users_username_unique            │
+│  • sessions_token_unique, sessions_userId_idx           │
+│  • projects_userId_idx, labels_projectId_idx           │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -646,12 +790,33 @@ Protected Endpoint:
 └─────────────────┘
 ```
 
-### 🔐 **User Roles**
+### 🔐 **User Roles & Subscription Types**
 ```typescript
 enum UserRole {
   USER        // Zwykły użytkownik - podstawowe operacje
   ADMIN       // Administrator - zarządzanie użytkownikami
   SUPER_ADMIN // Super admin - pełne uprawnienia systemu
+}
+
+enum SubscriptionType {
+  FREE         // Darmowy plan - ograniczone funkcje
+  STARTER      // Plan startowy - podstawowe funkcje
+  PROFESSIONAL // Plan profesjonalny - rozszerzone funkcje
+  ENTERPRISE   // Plan korporacyjny - pełne funkcje
+}
+
+enum SubscriptionStatus {
+  INACTIVE  // Nieaktywna subskrypcja
+  ACTIVE    // Aktywna subskrypcja
+  EXPIRED   // Wygasła subskrypcja
+  CANCELLED // Anulowana subskrypcja
+  TRIAL     // Okres próbny
+}
+
+enum LabelStatus {
+  DRAFT     // Szkic - w trakcie edycji
+  PUBLISHED // Opublikowany - gotowy do użycia
+  ARCHIVED  // Zarchiwizowany - nieaktywny
 }
 ```
 
@@ -770,6 +935,31 @@ curl -X POST http://localhost:3001/api/auth/login \
 TOKEN="your-jwt-token-here"
 curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:3001/api/auth/profile | jq
+
+# Test tworzenia projektu
+curl -X POST http://localhost:3001/api/projects \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test Project",
+    "description": "Test description",
+    "color": "#3b82f6"
+  }'
+
+# Test listy projektów
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:3001/api/projects
+
+# Test tworzenia labela
+PROJECT_ID="your-project-id"
+curl -X POST http://localhost:3001/api/projects/$PROJECT_ID/labels \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test Label",
+    "width": 100,
+    "height": 50
+  }'
 ```
 
 ### 📊 **Monitoring & Logging**
@@ -877,10 +1067,11 @@ DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 POSTGRES_DB=label_db
 POSTGRES_USER=label_user
 POSTGRES_PASSWORD=your_secure_password
+POSTGRES_PORT=5432
 
 # Application
 NODE_ENV=development|production
-PORT=3001
+BACKEND_PORT=3001
 JWT_SECRET=your_super_secret_jwt_key
 JWT_EXPIRES_IN=24h
 
@@ -1103,21 +1294,24 @@ docker-compose logs -f --tail=50
 ## 🎯 Roadmap & Future Features
 
 ### 🔄 **Planowane rozszerzenia**
-- 📊 **Metrics & Analytics** - Prometheus + Grafana
-- 🔄 **Real-time capabilities** - WebSocket support
-- 📧 **Email notifications** - SendGrid/Nodemailer integration
-- 📁 **File upload** - AWS S3/local storage
-- 🔍 **Full-text search** - Elasticsearch integration
-- 🧪 **Automated testing** - Jest + Supertest
-- 📈 **Rate limiting per user** - Redis-based limiting
+- 📊 **Advanced Analytics** - Dashboard z metrykami projektów i labeli
+- 🔄 **Real-time collaboration** - WebSocket support dla współpracy
+- 📧 **Email notifications** - Powiadomienia o zmianach w projektach
+- 📁 **Advanced file handling** - Import/export różnych formatów
+- 🔍 **Advanced search** - Full-text search w projektach i labelach
+- 🧪 **Automated testing** - Kompletne testy jednostkowe i integracyjne
+- 📈 **Advanced rate limiting** - Per-user i per-subscription limiting
 - 🔐 **OAuth integration** - Google/GitHub/Facebook login
+- 💳 **Payment integration** - Stripe/PayPal dla subskrypcji
+- 📱 **Mobile API** - Dedykowane endpointy dla aplikacji mobilnych
 
 ### 🏗️ **Architecture improvements**
-- 🐘 **Microservices split** - Separate auth service
-- 📦 **Event-driven architecture** - Message queues
+- 🐘 **Microservices architecture** - Podział na mindre serwisy
+- 📦 **Event-driven architecture** - Message queues i eventy
 - 🔄 **CQRS pattern** - Command/Query separation
-- 📊 **Horizontal scaling** - Load balancer support
-- 🏪 **Caching layer** - Redis integration
+- 📊 **Horizontal scaling** - Load balancer i clustering
+- 🏪 **Advanced caching** - Redis integration
+- 🔄 **Background jobs** - Queue system dla długotrwałych operacji
 
 ## 🎯 Przykłady użycia
 
@@ -1289,12 +1483,14 @@ done
 
 **Label Backend Server** to kompletne, enterprise-grade rozwiązanie oferujące:**
 
-- 🔒 **Enterprise Security** - JWT, bcrypt, rate limiting, CORS
+- 🔒 **Enterprise Security** - JWT, bcryptjs, rate limiting, CORS
 - 🚀 **Production Ready** - Docker, monitoring, error handling  
 - 🛠️ **Developer Friendly** - TypeScript, Prisma, comprehensive docs
 - ⚡ **High Performance** - Connection pooling, optimized queries
 - 🧪 **Fully Testable** - Multiple testing interfaces
 - 🔧 **Easy Deployment** - Docker Compose one-command setup
+- 📊 **Complete Business Logic** - Projects, Labels, Subscriptions
+- 🎨 **Label Management** - Full CRUD operations with Fabric.js support
 
 ### 🎯 **Quick Reference**
 ```bash
@@ -1318,5 +1514,5 @@ npm run docker:down
 
 ---
 
-*Ostatnia aktualizacja: Czerwiec 2025*
+*Ostatnia aktualizacja: Lipiec 2025*
 *Wersja: 1.0.0*
