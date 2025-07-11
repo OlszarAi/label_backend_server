@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { Logger } from '../utils/logger';
 
 export interface ApiError extends Error {
   statusCode?: number;
@@ -14,16 +15,26 @@ export const errorHandler = (
   const statusCode = error.statusCode || 500;
   const message = error.message || 'Internal Server Error';
   
-  // Log error details
-  console.error('Error occurred:', {
+  // Log error details with better formatting
+  const errorDetails = {
     statusCode,
     message,
-    stack: error.stack,
     url: req.url,
     method: req.method,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-  });
+    ip: req.ip || 'Unknown',
+    userAgent: req.get('User-Agent') || 'Unknown',
+    body: req.body,
+    query: req.query,
+    params: req.params,
+  };
+
+  if (statusCode >= 500) {
+    Logger.error(`🚨 Server Error (${statusCode}): ${message}`, error);
+    Logger.error(`Request details: ${JSON.stringify(errorDetails, null, 2)}`);
+  } else if (statusCode >= 400) {
+    Logger.warning(`⚠️  Client Error (${statusCode}): ${message}`);
+    Logger.debug(`Request details: ${JSON.stringify(errorDetails, null, 2)}`);
+  }
 
   // Don't expose internal errors in production
   const isDevelopment = process.env.NODE_ENV === 'development';

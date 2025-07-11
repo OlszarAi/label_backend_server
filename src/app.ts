@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { config } from './config/config';
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
+import { requestLogger, apiLogger } from './middleware/requestLogger';
 import { authRoutes } from './routes/auth.routes';
 import { healthRoutes } from './routes/health.routes';
 import { projectRoutes } from './routes/project.routes';
@@ -52,10 +53,14 @@ app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Custom request logging
+app.use(requestLogger);
+
 // Health check (before other routes)
 app.use('/health', healthRoutes);
 
-// API routes
+// API routes with detailed logging
+app.use('/api', apiLogger);
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 

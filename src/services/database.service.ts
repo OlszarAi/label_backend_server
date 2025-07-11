@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { Logger } from '../utils/logger';
 
 // Global variable to store Prisma client instance
 declare global {
@@ -8,7 +9,7 @@ declare global {
 // Create Prisma client instance
 const createPrismaClient = () => {
   return new PrismaClient({
-    log: ['query', 'info', 'warn', 'error'],
+    log: ['info', 'warn', 'error'],
     errorFormat: 'pretty',
   });
 };
@@ -24,9 +25,14 @@ if (process.env.NODE_ENV === 'development') {
 export async function connectDatabase() {
   try {
     await prisma.$connect();
-    console.log('Database connected successfully');
+    
+    // Test the connection with a simple query
+    await prisma.$queryRaw`SELECT 1`;
+    
+    Logger.database('🗄️  PostgreSQL connection established');
+    Logger.database('🔧 Prisma ORM initialized (9 connection pool)');
   } catch (error) {
-    console.error('Database connection failed:', error);
+    Logger.error('❌ Database connection failed', error);
     throw error;
   }
 }
@@ -34,10 +40,11 @@ export async function connectDatabase() {
 // Graceful disconnect
 export async function disconnectDatabase() {
   try {
+    Logger.info('🔄 Disconnecting from database...');
     await prisma.$disconnect();
-    console.log('Database disconnected successfully');
+    Logger.success('✅ Database disconnected successfully');
   } catch (error) {
-    console.error('Database disconnection failed:', error);
+    Logger.error('❌ Database disconnection failed', error);
     throw error;
   }
 }
