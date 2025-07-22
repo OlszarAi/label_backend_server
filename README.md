@@ -335,8 +335,7 @@ Content-Type: application/json
 
 {
   "name": "Zaktualizowany Label",
-  "fabricData": {...},
-  "status": "PUBLISHED"
+  "fabricData": {...}
 }
 ```
 
@@ -669,7 +668,7 @@ Docker Compose Stack
 └── 🌐 Internal network communication
 ```
 
-### �️ **Database Schema & Relations**
+### 🛠️ **Database Schema & Relations**
 ```sql
 ┌─────────────────────────────────────────────────────────┐
 │                    Database: label_db                   │
@@ -710,9 +709,8 @@ Docker Compose Stack
 │  │ color           │    │ thumbnail                   │ │
 │  │ userId (FK)     │    │ width                       │ │
 │  │ createdAt       │    │ height                      │ │
-│  │ updatedAt       │    │ status (enum)               │ │
-│  └─────────────────┘    │ version                     │ │
-│          │               │ createdAt                   │ │
+│  │ updatedAt       │    │ version                     │ │
+│  └─────────────────┘    │ createdAt                   │ │
 │          │               │ updatedAt                   │ │
 │          │               └─────────────────────────────┘ │
 │          │                                              │
@@ -724,7 +722,6 @@ Docker Compose Stack
 │  • SubscriptionType: FREE, STARTER, PROFESSIONAL, ENTERPRISE │
 │  • SubscriptionStatus: INACTIVE, ACTIVE, EXPIRED, CANCELLED, TRIAL │
 │  • BillingCycle: MONTHLY, YEARLY                        │
-│  • LabelStatus: DRAFT, PUBLISHED, ARCHIVED              │
 │                                                         │
 │  Indexes:                                               │
 │  • users_email_unique, users_username_unique            │
@@ -811,12 +808,6 @@ enum SubscriptionStatus {
   EXPIRED   // Wygasła subskrypcja
   CANCELLED // Anulowana subskrypcja
   TRIAL     // Okres próbny
-}
-
-enum LabelStatus {
-  DRAFT     // Szkic - w trakcie edycji
-  PUBLISHED // Opublikowany - gotowy do użycia
-  ARCHIVED  // Zarchiwizowany - nieaktywny
 }
 ```
 

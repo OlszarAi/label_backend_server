@@ -1,0 +1,55 @@
+# ===========================================
+# KONFIGURACJA SUPABASE dla .env
+# ===========================================
+# Skopiuj tę konfigurację do swojego pliku .env
+
+# Database Configuration (Supabase PostgreSQL)
+# ZASTĄP PONIŻSZE DANE SWOIMI Z SUPABASE:
+DATABASE_URL=postgresql://postgres:[YOUR_PASSWORD]@db.[YOUR_PROJECT_REF].supabase.co:5432/postgres?schema=public
+
+# Backend Configuration
+NODE_ENV=development
+BACKEND_PORT=3001
+JWT_SECRET=super_secret_jwt_key_change_in_production_123!@#
+
+# CORS Configuration
+FRONTEND_URL=http://localhost:3000
+
+# Security
+BCRYPT_ROUNDS=12
+JWT_EXPIRES_IN=24h
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# ===========================================
+# SUPABASE SPECIFIC (Optional - for future use)
+# ===========================================
+# Jeśli w przyszłości będziesz chciał używać Supabase Auth
+SUPABASE_URL=https://[YOUR_PROJECT_REF].supabase.co
+SUPABASE_ANON_KEY=[YOUR_ANON_KEY]
+SUPABASE_SERVICE_ROLE_KEY=[YOUR_SERVICE_ROLE_KEY]
+
+# ===========================================
+# INSTRUKCJE KONFIGURACJI:
+# ===========================================
+# 1. Idź do https://supabase.com/dashboard
+# 2. Wybierz swój projekt
+# 3. Settings > Database
+# 4. W sekcji "Connection string" znajdziesz:
+#    - Host: db.[YOUR_PROJECT_REF].supabase.co
+#    - Database: postgres
+#    - Port: 5432
+#    - Username: postgres
+#    - Password: [twoje hasło z procesu tworzenia]
+#
+# 5. Zastąp DATABASE_URL powyżej swoimi danymi:
+#    DATABASE_URL=postgresql://postgres:[TWOJE_HASŁO]@db.[TWÓJ_PROJECT_REF].supabase.co:5432/postgres?schema=public
+#
+# 6. Opcjonalnie dodaj klucze API z Settings > API
+
+# ===========================================
+# PRZYKŁAD GOTOWEGO DATABASE_URL:
+# ===========================================
+# DATABASE_URL=postgresql://postgres:TwojeHaslo123@db.abcdefghijk.supabase.co:5432/postgres?schema=public 

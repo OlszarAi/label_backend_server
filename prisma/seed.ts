@@ -1,4 +1,4 @@
-import { PrismaClient, LabelStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -73,7 +73,6 @@ async function main() {
       projectId: project1.id,
       width: 400,
       height: 300,
-      status: 'DRAFT' as LabelStatus,
     },
     {
       name: 'Premium Product Label',
@@ -81,7 +80,6 @@ async function main() {
       projectId: project1.id,
       width: 500,
       height: 400,
-      status: 'PUBLISHED' as LabelStatus,
     },
     {
       name: 'Campaign Sticker',
@@ -89,7 +87,6 @@ async function main() {
       projectId: project2.id,
       width: 300,
       height: 300,
-      status: 'PUBLISHED' as LabelStatus,
     },
     {
       name: 'Event Badge Template',
@@ -97,7 +94,6 @@ async function main() {
       projectId: project3.id,
       width: 350,
       height: 200,
-      status: 'DRAFT' as LabelStatus,
     },
   ];
 

@@ -39,17 +39,25 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// CORS configuration
+// Middleware setup
+app.use(compression());
+app.use(morgan('combined'));
+app.use(helmet());
+
+// CORS configuration for separate frontend/backend deployment
 app.use(cors({
-  origin: config.frontendUrl,
+  origin: [
+    'http://localhost:3000',                    // Local development frontend
+    'http://localhost:3001',                    // Local development (same port)
+    process.env.FRONTEND_URL || 'http://localhost:3000',  // Production frontend from env
+    /^https:\/\/.*\.vercel\.app$/              // All Vercel preview deployments
+  ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 }));
 
 // General middleware
-app.use(compression());
-app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

@@ -27,7 +27,14 @@
     "logs:db": "docker-compose logs -f postgres",
     "reset:db": "docker-compose down && docker volume rm label_backend_server_postgres_data 2>/dev/null || true && docker-compose up -d postgres",
     "lint": "eslint src/**/*.ts",
-    "test": "jest"
+    "test": "jest",
+    "supabase:switch": "./scripts/switch-to-supabase.sh",
+    "local:switch": "./scripts/switch-to-local.sh",
+    "dev:supabase": "npm run dev",
+    "vercel:build": "npm run build && npm run db:generate",
+    "vercel:dev": "vercel dev",
+    "deploy:vercel": "npm run vercel:build && vercel --prod",
+    "deploy:setup": "./scripts/deploy-vercel.sh"
   },
   "dependencies": {
     "@prisma/client": "^5.15.0",

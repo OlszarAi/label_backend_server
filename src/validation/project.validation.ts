@@ -52,8 +52,7 @@ export const createLabelSchema = Joi.object({
     'number.max': 'Height cannot exceed 1000mm'
   }),
   fabricData: Joi.object().optional(),
-  thumbnail: Joi.string().optional(),
-  status: Joi.string().valid('DRAFT', 'PUBLISHED', 'ARCHIVED').optional()
+  thumbnail: Joi.string().optional()
 });
 
 export const updateLabelSchema = Joi.object({
@@ -75,5 +74,9 @@ export const updateLabelSchema = Joi.object({
   }),
   fabricData: Joi.object().optional(),
   thumbnail: Joi.string().optional(),
-  status: Joi.string().valid('DRAFT', 'PUBLISHED', 'ARCHIVED').optional()
+  version: Joi.number().integer().positive().optional().messages({
+    'number.base': 'Version must be a number',
+    'number.integer': 'Version must be an integer',
+    'number.positive': 'Version must be a positive number'
+  })
 });
