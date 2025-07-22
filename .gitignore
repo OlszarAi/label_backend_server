@@ -149,3 +149,4 @@ secrets/
 .clinic/
 *.heapsnapshot
 *.cpuprofile
+.vercel

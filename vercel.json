@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "npm run vercel:build",
+  "installCommand": "npm install",
   "builds": [
     {
       "src": "dist/index.js",
@@ -8,16 +10,18 @@
   ],
   "routes": [
     {
+      "src": "/health",
+      "dest": "dist/index.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
       "src": "/(.*)",
       "dest": "dist/index.js"
     }
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "dist/index.js": {
-      "maxDuration": 30
-    }
   }
 } 
