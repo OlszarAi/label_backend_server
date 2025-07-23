@@ -10,7 +10,9 @@ import {
   createLabel,
   updateLabel,
   deleteLabel,
-  duplicateLabel
+  duplicateLabel,
+  exportProjectLabels,
+  exportLabel
 } from '../controllers/project.controller';
 import { validateAuth } from '../middleware/auth.middleware';
 
@@ -33,5 +35,9 @@ router.get('/labels/:labelId', getLabel);
 router.put('/labels/:labelId', updateLabel);
 router.delete('/labels/:labelId', deleteLabel);
 router.post('/labels/:labelId/duplicate', duplicateLabel);
+
+// Export routes
+router.get('/:projectId/labels/export', exportProjectLabels);
+router.get('/labels/:labelId/export', exportLabel);
 
 export { router as projectRoutes };

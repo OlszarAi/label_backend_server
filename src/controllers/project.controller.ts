@@ -508,3 +508,126 @@ export const duplicateLabel = async (req: AuthenticatedRequest, res: Response, n
     next(error);
   }
 };
+
+// Export funkcje dla etykiet
+export const exportProjectLabels = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user!.id;
+    const { format = 'pdf', labelIds } = req.query;
+
+    if (!projectId) {
+      throw createError('Project ID is required', 400);
+    }
+
+    // Verify project ownership
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, userId }
+    });
+
+    if (!project) {
+      throw createError('Project not found', 404);
+    }
+
+    // Build query dla etykiet
+    const whereClause: any = { projectId };
+    
+    // Jeśli labelIds są podane, eksportuj tylko wybrane etykiety
+    if (labelIds) {
+      const ids = Array.isArray(labelIds) ? labelIds : [labelIds];
+      whereClause.id = { in: ids };
+    }
+
+    // Pobierz etykiety z wszystkimi danymi potrzebnymi do eksportu
+    const labels = await prisma.label.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        name: true,
+        width: true,
+        height: true,
+        fabricData: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    if (labels.length === 0) {
+      throw createError('No labels found for export', 404);
+    }
+
+    // Na razie backend tylko przekazuje dane - frontend się zajmuje generowaniem PDF
+    res.status(200).json({
+      success: true,
+      message: 'Export data retrieved successfully',
+      data: {
+        project: {
+          id: project.id,
+          name: project.name
+        },
+        labels,
+        format,
+        exportedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Export pojedynczej etykiety
+export const exportLabel = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { labelId } = req.params;
+    const userId = req.user!.id;
+    const { format = 'pdf' } = req.query;
+
+    if (!labelId) {
+      throw createError('Label ID is required', 400);
+    }
+
+    // Check if label exists and user owns the project
+    const label = await prisma.label.findFirst({
+      where: { 
+        id: labelId,
+        project: { userId }
+      },
+      select: {
+        id: true,
+        name: true,
+        width: true,
+        height: true,
+        fabricData: true,
+        createdAt: true,
+        updatedAt: true,
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    if (!label) {
+      throw createError('Label not found', 404);
+    }
+
+    // Na razie backend tylko przekazuje dane - frontend się zajmuje generowaniem PDF
+    res.status(200).json({
+      success: true,
+      message: 'Export data retrieved successfully',
+      data: {
+        project: label.project,
+        labels: [label],
+        format,
+        exportedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
