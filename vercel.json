@@ -11,16 +11,22 @@
   "routes": [
     {
       "src": "/health",
-      "dest": "dist/index.js",
-      "headers": {
-        "Access-Control-Allow-Origin": "*"
-      }
+      "dest": "/dist/index.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/dist/index.js"
     },
     {
       "src": "/(.*)",
-      "dest": "dist/index.js"
+      "dest": "/dist/index.js"
     }
   ],
+  "functions": {
+    "dist/index.js": {
+      "maxDuration": 30
+    }
+  },
   "env": {
     "NODE_ENV": "production"
   }

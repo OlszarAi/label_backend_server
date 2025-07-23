@@ -48,7 +48,9 @@
     "joi": "^17.13.1",
     "express-rate-limit": "^7.2.0",
     "compression": "^1.7.4",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "tsx": "^4.15.1",
+    "typescript": "^5.4.5"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
@@ -62,9 +64,7 @@
     "@typescript-eslint/parser": "^7.13.0",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
-    "prisma": "^5.15.0",
-    "tsx": "^4.15.1",
-    "typescript": "^5.4.5"
+    "prisma": "^5.15.0"
   },
   "keywords": [
     "backend",

@@ -3,6 +3,7 @@ import { prisma } from '../services/database.service';
 import { createError } from '../middleware/errorHandler';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { createProjectSchema, updateProjectSchema, createLabelSchema, updateLabelSchema } from '../validation/project.validation';
+import { generateCopyName, type LabelForNaming } from '../utils/labelNaming';
 
 export const getProjects = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -461,48 +462,6 @@ export const deleteLabel = async (req: AuthenticatedRequest, res: Response, next
     res.status(200).json({
       success: true,
       message: 'Label deleted successfully'
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const duplicateLabel = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const { labelId } = req.params;
-    const userId = req.user!.id;
-
-    if (!labelId) {
-      throw createError('Label ID is required', 400);
-    }
-
-    // Check if label exists and user owns the project
-    const existingLabel = await prisma.label.findFirst({
-      where: { 
-        id: labelId,
-        project: { userId }
-      }
-    });
-
-    if (!existingLabel) {
-      throw createError('Label not found', 404);
-    }
-
-    const duplicatedLabel = await prisma.label.create({
-      data: {
-        name: `${existingLabel.name} (Copy)`,
-        description: existingLabel.description,
-        projectId: existingLabel.projectId,
-        fabricData: existingLabel.fabricData as any,
-        width: existingLabel.width,
-        height: existingLabel.height,
-      }
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Label duplicated successfully',
-      data: duplicatedLabel
     });
   } catch (error) {
     next(error);

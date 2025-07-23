@@ -10,7 +10,6 @@ import {
   createLabel,
   updateLabel,
   deleteLabel,
-  duplicateLabel,
   exportProjectLabels,
   exportLabel
 } from '../controllers/project.controller';
@@ -34,7 +33,6 @@ router.post('/:projectId/labels', createLabel);
 router.get('/labels/:labelId', getLabel);
 router.put('/labels/:labelId', updateLabel);
 router.delete('/labels/:labelId', deleteLabel);
-router.post('/labels/:labelId/duplicate', duplicateLabel);
 
 // Export routes
 router.get('/:projectId/labels/export', exportProjectLabels);
