@@ -32,7 +32,19 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     
     // Log detailed info for errors
     if (statusCode >= 400 && config.nodeEnv === 'development') {
-      Logger.debug(`Error details: ${statusCode} - ${url} - ${JSON.stringify(req.body)}`);
+      // Create a safe copy of the body without sensitive data for error logging
+      const safeErrorBody = { ...req.body };
+      if (safeErrorBody.password) {
+        safeErrorBody.password = '[FILTERED]';
+      }
+      if (safeErrorBody.currentPassword) {
+        safeErrorBody.currentPassword = '[FILTERED]';
+      }
+      if (safeErrorBody.newPassword) {
+        safeErrorBody.newPassword = '[FILTERED]';
+      }
+      
+      Logger.debug(`Error details: ${statusCode} - ${url} - ${JSON.stringify(safeErrorBody)}`);
     }
     
     return originalSend.call(this, body);
@@ -50,7 +62,21 @@ export function apiLogger(req: Request, res: Response, next: NextFunction) {
     Logger.debug(`🌐 ${method} ${url}`);
     
     if (req.body && Object.keys(req.body).length > 0) {
-      Logger.debug(`� Body: ${JSON.stringify(req.body)}`);
+      // Create a safe copy of the body without sensitive data
+      const safeBody = { ...req.body };
+      
+      // Remove sensitive fields
+      if (safeBody.password) {
+        safeBody.password = '[FILTERED]';
+      }
+      if (safeBody.currentPassword) {
+        safeBody.currentPassword = '[FILTERED]';
+      }
+      if (safeBody.newPassword) {
+        safeBody.newPassword = '[FILTERED]';
+      }
+      
+      Logger.debug(`� Body: ${JSON.stringify(safeBody)}`);
     }
   }
   
