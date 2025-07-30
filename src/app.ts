@@ -11,7 +11,6 @@ import { requestLogger, apiLogger } from './middleware/requestLogger';
 import { authRoutes } from './routes/auth.routes';
 import { healthRoutes } from './routes/health.routes';
 import { projectRoutes } from './routes/project.routes';
-import labelManagementRoutes from './routes/labelManagement.routes';
 
 const app = express();
 
@@ -93,7 +92,6 @@ app.get('/', (req, res) => {
 app.use('/api', apiLogger);
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
-app.use('/api/label-management', labelManagementRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

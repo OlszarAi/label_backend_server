@@ -3,6 +3,8 @@ import { app } from './app';
 import { config } from './config/config';
 import { connectDatabase } from './services/database.service';
 import { Logger } from './utils/logger';
+import { CacheManager } from './core/cache/cache-manager';
+import { StorageManager } from './core/storage/bucket-manager';
 
 // Load environment variables
 dotenv.config();
@@ -16,6 +18,17 @@ async function startServer() {
     Logger.info('🔄 Connecting to PostgreSQL database...');
     await connectDatabase();
     Logger.success('✅ Database connected successfully');
+    
+    // Initialize cache system
+    Logger.info('🔄 Initializing cache system...');
+    await CacheManager.initialize();
+    Logger.success('✅ Cache system initialized');
+    
+    // Initialize storage buckets
+    Logger.info('🔄 Initializing storage buckets...');
+    await StorageManager.initializeBuckets();
+    Logger.success('✅ Storage buckets initialized');
+    
     Logger.newLine();
 
     // Start server
