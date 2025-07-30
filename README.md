@@ -301,20 +301,3 @@ npm run logs:db  # Database logs
 ```
 
 ---
-
-## 🎯 Podsumowanie
-
-**Backend działa w architekturze hybrydowej:**
-
-1. **PostgreSQL (Prisma)** - główna baza danych z CRUD operations
-2. **Supabase Storage** - pliki i miniatury z CDN
-3. **Redis/Memory Cache** - wydajność z intelligent invalidation
-4. **Express.js** - REST API z JWT auth i middleware
-
-**Wszystko jest połączone w jeden spójny system** który automatycznie:
-- Cache'uje dane dla wydajności
-- Uploaduje pliki do Storage
-- Invaliduje cache przy zmianach
-- Obsługuje błędy z fallback'ami
-
-**System jest gotowy do produkcji** i skaluje się automatycznie z infrastrukturą Supabase i Redis.
