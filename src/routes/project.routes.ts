@@ -10,6 +10,7 @@ import {
   createLabel,
   updateLabel,
   deleteLabel,
+  refreshThumbnailUrl,
   exportProjectLabels,
   exportLabel
 } from '../controllers/project.controller';
@@ -33,6 +34,9 @@ router.post('/:projectId/labels', createLabel);
 router.get('/labels/:labelId', getLabel);
 router.put('/labels/:labelId', updateLabel);
 router.delete('/labels/:labelId', deleteLabel);
+
+// Thumbnail management
+router.post('/labels/:labelId/refresh-thumbnail', refreshThumbnailUrl);
 
 // Export routes
 router.get('/:projectId/labels/export', exportProjectLabels);
