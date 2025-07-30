@@ -234,55 +234,6 @@ INSERT INTO storage.buckets (id, name, public) VALUES
 CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'thumbnails');
 ```
 
-## 📊 Performance
-
-### **Cache Metrics**
-- **Cache hit ratio:** ~80% dla projektów
-- **Response time:** <50ms dla cached requests
-- **TTL optymalne:** 10min projekty, 5min etykiety
-
-### **Storage Metrics**
-- **Thumbnail size:** ~50KB średnio (.webp compression)
-- **Upload time:** <200ms średnio
-- **CDN delivery:** <100ms globalnie
-
-### **Database Metrics**
-- **Connection pool:** 9 connections (Prisma default)
-- **Query time:** <10ms średnio dla indexed queries
-- **Transactions:** Atomic dla label creation + thumbnail upload
-
-## 🚨 Troubleshooting
-
-### **Częste Problemy**
-
-#### **Cache Issues**
-```bash
-# Sprawdź Redis
-redis-cli ping
-
-# Clear cache manually
-npm run cache:clear
-```
-
-#### **Storage Issues**
-```bash
-# Test Supabase connection
-echo $SUPABASE_URL
-echo $SUPABASE_SERVICE_ROLE_KEY
-
-# Check buckets
-curl "{SUPABASE_URL}/storage/v1/bucket" -H "Authorization: Bearer {key}"
-```
-
-#### **Database Issues**
-```bash
-# Test PostgreSQL
-npm run db:studio
-
-# Reset database
-npm run reset:db
-```
-
 ## 📈 Monitoring
 
 ### **Health Checks**
