@@ -30,10 +30,14 @@ export const errorHandler = (
 
   if (statusCode >= 500) {
     Logger.error(`🚨 Server Error (${statusCode}): ${message}`, error);
-    Logger.error(`Request details: ${JSON.stringify(errorDetails, null, 2)}`);
+    if (process.env.NODE_ENV === 'development') {
+      Logger.error(`Request details: ${JSON.stringify(errorDetails, null, 2)}`);
+    }
   } else if (statusCode >= 400) {
     Logger.warning(`⚠️  Client Error (${statusCode}): ${message}`);
-    Logger.debug(`Request details: ${JSON.stringify(errorDetails, null, 2)}`);
+    if (process.env.NODE_ENV === 'development') {
+      Logger.debug(`Request details: ${JSON.stringify(errorDetails, null, 2)}`);
+    }
   }
 
   // Don't expose internal errors in production

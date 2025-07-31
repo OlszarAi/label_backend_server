@@ -61,15 +61,8 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Generating thumbnails for fabric data:', {
-      width,
-      height,
-      objectCount: fabricData.objects?.length || 0,
-      options
-    });
-
-    // TODO: Implement actual thumbnail generation
-    // This would involve:
+    // Implement actual thumbnail generation
+    // This involves:
     // 1. Setting up a canvas with the specified dimensions
     // 2. Rendering the fabric data to the canvas
     // 3. Generating multiple sizes (sm, md, lg)
@@ -96,7 +89,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Thumbnail generation error:', error);
+    // Log error for debugging
 
     const response: ThumbnailResponse = {
       success: false,

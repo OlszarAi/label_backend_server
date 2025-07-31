@@ -6,6 +6,7 @@ import { createProjectSchema, updateProjectSchema, createLabelSchema, updateLabe
 import { generateCopyName, type LabelForNaming } from '../utils/labelNaming';
 import { CacheManager } from '../core/cache/cache-manager';
 import { StorageManager } from '../core/storage/bucket-manager';
+import { Logger } from '../utils/logger';
 
 export const getProjects = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -103,6 +104,28 @@ export const getProject = async (req: AuthenticatedRequest, res: Response, next:
 
     if (!project) {
       throw createError('Project not found', 404);
+    }
+
+    // Refresh signed URLs for thumbnails in all labels
+    if (project.labels && project.labels.length > 0) {
+      const labelsWithFreshUrls = await Promise.all(
+        project.labels.map(async (label) => {
+          if (label.thumbnail) {
+            try {
+              const freshThumbnailUrl = await StorageManager.refreshThumbnailUrl(label.id);
+              return {
+                ...label,
+                thumbnail: freshThumbnailUrl
+              };
+            } catch (error) {
+              Logger.warning(`⚠️  Failed to refresh thumbnail URL for label ${label.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+              return label;
+            }
+          }
+          return label;
+        })
+      );
+      project.labels = labelsWithFreshUrls;
     }
 
     res.status(200).json({
@@ -290,9 +313,30 @@ export const getProjectLabels = async (req: AuthenticatedRequest, res: Response,
       orderBy: { [sortBy as string]: sortOrder }
     });
 
+    // Refresh signed URLs for thumbnails to prevent expired tokens
+    const labelsWithFreshUrls = await Promise.all(
+      labels.map(async (label) => {
+        if (label.thumbnail) {
+          try {
+            // Refresh the signed URL for the thumbnail
+            const freshThumbnailUrl = await StorageManager.refreshThumbnailUrl(label.id);
+            return {
+              ...label,
+              thumbnail: freshThumbnailUrl
+            };
+          } catch (error) {
+            Logger.warning(`⚠️  Failed to refresh thumbnail URL for label ${label.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            // Return label with original thumbnail URL as fallback
+            return label;
+          }
+        }
+        return label;
+      })
+    );
+
     res.status(200).json({
       success: true,
-      data: labels
+      data: labelsWithFreshUrls
     });
   } catch (error) {
     next(error);
@@ -326,6 +370,17 @@ export const getLabel = async (req: AuthenticatedRequest, res: Response, next: N
 
     if (!label) {
       throw createError('Label not found', 404);
+    }
+
+    // Refresh signed URL for thumbnail if it exists
+    if (label.thumbnail) {
+      try {
+        const freshThumbnailUrl = await StorageManager.refreshThumbnailUrl(label.id);
+        label.thumbnail = freshThumbnailUrl;
+      } catch (error) {
+        Logger.warning(`⚠️  Failed to refresh thumbnail URL for label ${label.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        // Keep original thumbnail URL as fallback
+      }
     }
 
     res.status(200).json({
@@ -368,7 +423,7 @@ export const createLabel = async (req: AuthenticatedRequest, res: Response, next
         // We'll get labelId after creation, so for now store data URL
         // and upload in a separate operation
       } catch (uploadError) {
-        console.error('Failed to upload thumbnail to storage:', uploadError);
+        Logger.error('Failed to upload thumbnail to storage:', uploadError);
       }
     }
 
@@ -401,7 +456,7 @@ export const createLabel = async (req: AuthenticatedRequest, res: Response, next
         
         label.thumbnail = uploadResult.url;
       } catch (uploadError) {
-        console.error('Failed to upload thumbnail to storage after creation:', uploadError);
+        Logger.error('Failed to upload thumbnail to storage after creation:', uploadError);
         // Continue with data URL
       }
     }
@@ -481,7 +536,7 @@ export const updateLabel = async (req: AuthenticatedRequest, res: Response, next
         thumbnailData = uploadResult.url; // Store URL instead of data URL
       } catch (uploadError) {
         // Log error but don't fail the entire operation
-        console.error('Failed to upload thumbnail to storage:', uploadError);
+        Logger.error('Failed to upload thumbnail to storage:', uploadError);
         // Keep the data URL as fallback
       }
     }
@@ -541,7 +596,7 @@ export const deleteLabel = async (req: AuthenticatedRequest, res: Response, next
         await StorageManager.deleteLabelThumbnails(labelId);
       }
     } catch (storageError) {
-      console.error('Failed to delete thumbnails during label deletion:', storageError);
+      Logger.error('Failed to delete thumbnails during label deletion:', storageError);
       // Continue with label deletion even if storage cleanup fails
     }
 

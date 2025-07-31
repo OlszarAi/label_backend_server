@@ -533,8 +533,8 @@ export const getFullProfile = async (req: AuthenticatedRequest, res: Response, n
     });
 
     const stats = {
-      labelsCreated: 0, // TODO: Implement when labels feature is added
-      projectsSaved: 0, // TODO: Implement when projects feature is added
+      labelsCreated: 0, // To be implemented with labels feature
+      projectsSaved: 0, // To be implemented with projects feature
       daysFromRegistration,
       totalSpent,
       lastLoginDate: lastSession?.createdAt || null,

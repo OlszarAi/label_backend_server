@@ -98,7 +98,7 @@ export class Logger {
   static ready(): void {
     console.log(`${colors.green}${colors.bright}� SERVER READY${colors.reset} - Listening on port ${colors.cyan}${config.port}${colors.reset}`);
     console.log(`${colors.dim}───────────────────────────────────────────────────────────────────────────────${colors.reset}`);
-    console.log(`${colors.blue}Endpoints:${colors.reset} ${colors.cyan}/health${colors.reset} ${colors.dim}|${colors.reset} ${colors.cyan}/api/auth${colors.reset} ${colors.dim}|${colors.reset} ${colors.cyan}/api/projects${colors.reset}`);
+    console.log(`${colors.blue}Endpoints:${colors.reset} ${colors.cyan}/health${colors.reset} ${colors.dim}|${colors.reset} ${colors.cyan}/api/auth${colors.reset} ${colors.dim}|${colors.reset} ${colors.cyan}/api/projects${colors.reset} ${colors.dim}|${colors.reset} ${colors.cyan}/api/label-management${colors.reset}`);
     console.log(`${colors.magenta}Commands:${colors.reset} ${colors.yellow}npm run db:studio${colors.reset} ${colors.dim}|${colors.reset} ${colors.yellow}npm run health${colors.reset}`);
     console.log(`${colors.dim}───────────────────────────────────────────────────────────────────────────────${colors.reset}`);
     console.log('');

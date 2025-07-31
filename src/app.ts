@@ -11,6 +11,8 @@ import { requestLogger, apiLogger } from './middleware/requestLogger';
 import { authRoutes } from './routes/auth.routes';
 import { healthRoutes } from './routes/health.routes';
 import { projectRoutes } from './routes/project.routes';
+import simplifiedAssetRoutes from './routes/simplified-asset.routes';
+import { labelManagementRoutes } from './routes/label-management.routes';
 
 const app = express();
 
@@ -25,6 +27,7 @@ app.use(helmet({
     },
   },
   crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: false,
 }));
 
 // Rate limiting
@@ -42,21 +45,21 @@ app.use('/api', limiter);
 // Middleware setup
 app.use(compression());
 app.use(morgan('combined'));
-app.use(helmet());
 
 // CORS configuration for separate frontend/backend deployment
 app.use(cors({
   origin: [
-    'http://localhost:3000',                    // Local development frontend
-    'http://localhost:3001',                    // Local development (same port)
-    'https://label-frontend-wheat.vercel.app',  // Production frontend
-    process.env.FRONTEND_URL || 'http://localhost:3000',  // Production frontend from env
-    /^https:\/\/.*\.vercel\.app$/,              // All Vercel preview deployments
-    /^https:\/\/label-frontend.*\.vercel\.app$/ // Specific pattern for label-frontend
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://label-frontend-wheat.vercel.app',
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    /^https:\/\/.*\.vercel\.app$/,
+    /^https:\/\/label-frontend.*\.vercel\.app$/
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  exposedHeaders: ['Access-Control-Allow-Origin', 'Access-Control-Allow-Credentials'],
   optionsSuccessStatus: 200,
   preflightContinue: false
 }));
@@ -83,7 +86,9 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       auth: '/api/auth',
-      projects: '/api/projects'
+      projects: '/api/projects',
+      assets: '/api/assets',
+      labelManagement: '/api/label-management'
     }
   });
 });
@@ -92,6 +97,8 @@ app.get('/', (req, res) => {
 app.use('/api', apiLogger);
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/assets', simplifiedAssetRoutes);
+app.use('/api/label-management', labelManagementRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

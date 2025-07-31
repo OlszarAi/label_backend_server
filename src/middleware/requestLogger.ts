@@ -30,7 +30,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     const shortIp = ip === '::1' || ip === '127.0.0.1' ? 'local' : ip.substring(0, 10);
     Logger.info(`${statusIcon} ${method.padEnd(4)} ${url.padEnd(20)} ${statusCode} ${duration}ms ${colors.dim}(${shortIp})${colors.reset}`);
     
-    // Log detailed info for errors
+    // Log detailed info for errors in development only
     if (statusCode >= 400 && config.nodeEnv === 'development') {
       // Create a safe copy of the body without sensitive data for error logging
       const safeErrorBody = { ...req.body };
@@ -76,7 +76,16 @@ export function apiLogger(req: Request, res: Response, next: NextFunction) {
         safeBody.newPassword = '[FILTERED]';
       }
       
-      Logger.debug(`� Body: ${JSON.stringify(safeBody)}`);
+      // Filter out large base64 data (thumbnails, images)
+      if (safeBody.thumbnail && typeof safeBody.thumbnail === 'string' && safeBody.thumbnail.startsWith('data:')) {
+        safeBody.thumbnail = '[BASE64_IMAGE_FILTERED]';
+      }
+      if (safeBody.fabricData && typeof safeBody.fabricData === 'object') {
+        // Don't log full fabricData as it can be very large
+        safeBody.fabricData = '[FABRIC_DATA_FILTERED]';
+      }
+      
+      Logger.debug(`📝 Body: ${JSON.stringify(safeBody)}`);
     }
   }
   

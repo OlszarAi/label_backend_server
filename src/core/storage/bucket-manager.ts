@@ -10,7 +10,8 @@ import { Logger } from '../../utils/logger';
 export const STORAGE_BUCKETS = {
   THUMBNAILS: 'thumbnails',
   ASSETS: 'assets',
-  EXPORTS: 'exports'
+  EXPORTS: 'exports',
+  USER_ASSETS: 'user-assets'
 } as const;
 
 type StorageBucket = typeof STORAGE_BUCKETS[keyof typeof STORAGE_BUCKETS];
@@ -53,8 +54,12 @@ export class StorageManager {
           const { error } = await supabaseAdmin.storage
             .createBucket(bucketName, {
               public: false, // Make buckets private for security
-              allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'],
-              fileSizeLimit: 10 * 1024 * 1024 // 10MB
+              allowedMimeTypes: bucketName === STORAGE_BUCKETS.USER_ASSETS 
+                ? ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
+                : ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'],
+              fileSizeLimit: bucketName === STORAGE_BUCKETS.USER_ASSETS 
+                ? 5 * 1024 * 1024  // 5MB for user assets
+                : 10 * 1024 * 1024 // 10MB for other buckets
             });
           
           if (error) {
@@ -324,6 +329,80 @@ export class StorageManager {
       return data?.[0] || null;
     } catch (error) {
       Logger.error(`Failed to get file info for ${bucket}/${path}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload user asset (image)
+   */
+  static async uploadUserAsset(options: {
+    userId: string;
+    file: Buffer | Uint8Array;
+    fileName: string;
+    contentType: string;
+  }): Promise<{ url: string; path: string; size: number }> {
+    try {
+      const { userId, file, fileName, contentType } = options;
+      
+      // Generate unique filename to avoid conflicts
+      const timestamp = Date.now();
+      const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const path = `users/${userId}/${timestamp}_${safeName}`;
+      
+      const result = await this.uploadFile({
+        bucket: STORAGE_BUCKETS.USER_ASSETS,
+        path,
+        file,
+        contentType,
+        cacheControl: '86400', // 24 hours cache
+        upsert: false // Don't overwrite existing files
+      });
+      
+      // Get file size
+      const fileInfo = await this.getFileInfo(STORAGE_BUCKETS.USER_ASSETS, path);
+      const fileSize = fileInfo?.metadata?.size || (file as Buffer).length || 0;
+      
+      Logger.info(`📁 User asset uploaded: ${path} (${fileSize} bytes)`);
+      
+      return {
+        ...result,
+        size: fileSize
+      };
+    } catch (error) {
+      Logger.error('Failed to upload user asset:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete user asset
+   */
+  static async deleteUserAsset(path: string): Promise<void> {
+    try {
+      const { error } = await supabaseAdmin.storage
+        .from(STORAGE_BUCKETS.USER_ASSETS)
+        .remove([path]);
+      
+      if (error) {
+        throw new Error(`Failed to delete user asset: ${error.message}`);
+      }
+      
+      Logger.info(`🗑️  User asset deleted: ${path}`);
+    } catch (error) {
+      Logger.error(`Failed to delete user asset ${path}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get signed URL for user asset
+   */
+  static async getUserAssetUrl(path: string, expiresIn: number = 3600): Promise<string> {
+    try {
+      return await this.getSignedUrl(STORAGE_BUCKETS.USER_ASSETS, path, expiresIn);
+    } catch (error) {
+      Logger.error(`Failed to get user asset URL for ${path}:`, error);
       throw error;
     }
   }
