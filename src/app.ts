@@ -16,6 +16,10 @@ import { labelManagementRoutes } from './routes/label-management.routes';
 
 const app = express();
 
+// Trust proxy - required for Vercel and other cloud platforms
+// More secure: only trust first proxy (Vercel's edge)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
