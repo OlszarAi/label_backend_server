@@ -6,6 +6,7 @@ import { createProjectSchema, updateProjectSchema, createLabelSchema, updateLabe
 import { generateCopyName, type LabelForNaming } from '../utils/labelNaming';
 import { CacheManager } from '../core/cache/cache-manager';
 import { StorageManager } from '../core/storage/bucket-manager';
+import { ThumbnailService } from '../services/thumbnail.service';
 import { Logger } from '../utils/logger';
 
 export const getProjects = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -111,16 +112,11 @@ export const getProject = async (req: AuthenticatedRequest, res: Response, next:
       const labelsWithFreshUrls = await Promise.all(
         project.labels.map(async (label) => {
           if (label.thumbnail) {
-            try {
-              const freshThumbnailUrl = await StorageManager.refreshThumbnailUrl(label.id);
-              return {
-                ...label,
-                thumbnail: freshThumbnailUrl
-              };
-            } catch (error) {
-              Logger.warning(`⚠️  Failed to refresh thumbnail URL for label ${label.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-              return label;
-            }
+            const freshThumbnailUrl = await ThumbnailService.getThumbnailUrl(label.id, 'md');
+            return {
+              ...label,
+              thumbnail: freshThumbnailUrl || label.thumbnail
+            };
           }
           return label;
         })
@@ -317,18 +313,12 @@ export const getProjectLabels = async (req: AuthenticatedRequest, res: Response,
     const labelsWithFreshUrls = await Promise.all(
       labels.map(async (label) => {
         if (label.thumbnail) {
-          try {
-            // Refresh the signed URL for the thumbnail
-            const freshThumbnailUrl = await StorageManager.refreshThumbnailUrl(label.id);
-            return {
-              ...label,
-              thumbnail: freshThumbnailUrl
-            };
-          } catch (error) {
-            Logger.warning(`⚠️  Failed to refresh thumbnail URL for label ${label.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            // Return label with original thumbnail URL as fallback
-            return label;
-          }
+          // Refresh the signed URL for the thumbnail
+          const freshThumbnailUrl = await ThumbnailService.getThumbnailUrl(label.id, 'md');
+          return {
+            ...label,
+            thumbnail: freshThumbnailUrl || label.thumbnail // Use fresh URL or fallback to original
+          };
         }
         return label;
       })
@@ -374,12 +364,9 @@ export const getLabel = async (req: AuthenticatedRequest, res: Response, next: N
 
     // Refresh signed URL for thumbnail if it exists
     if (label.thumbnail) {
-      try {
-        const freshThumbnailUrl = await StorageManager.refreshThumbnailUrl(label.id);
+      const freshThumbnailUrl = await ThumbnailService.getThumbnailUrl(label.id, 'md');
+      if (freshThumbnailUrl) {
         label.thumbnail = freshThumbnailUrl;
-      } catch (error) {
-        Logger.warning(`⚠️  Failed to refresh thumbnail URL for label ${label.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        // Keep original thumbnail URL as fallback
       }
     }
 
@@ -642,30 +629,37 @@ export const refreshThumbnailUrl = async (req: AuthenticatedRequest, res: Respon
     }
 
     try {
-      // Generate new signed URL
-      const newThumbnailUrl = await StorageManager.refreshThumbnailUrl(labelId, size as string);
+      // Generate new signed URL using thumbnail service
+      const newThumbnailUrl = await ThumbnailService.getThumbnailUrl(labelId, size as 'sm' | 'md' | 'lg');
       
-      // Update label with new URL
-      const updatedLabel = await prisma.label.update({
-        where: { id: labelId },
-        data: {
-          thumbnail: newThumbnailUrl,
-          updatedAt: new Date()
-        }
-      });
+      if (newThumbnailUrl) {
+        // Update label with new URL
+        const updatedLabel = await prisma.label.update({
+          where: { id: labelId },
+          data: {
+            thumbnail: newThumbnailUrl,
+            updatedAt: new Date()
+          }
+        });
 
-      // Clear cache
-      await CacheManager.delete(`label:${labelId}`);
-      await CacheManager.delete(`project:${existingLabel.projectId}`);
-      await CacheManager.deletePattern(`projects:${userId}:*`);
+        // Clear cache
+        await CacheManager.delete(`label:${labelId}`);
+        await CacheManager.delete(`project:${existingLabel.projectId}`);
+        await CacheManager.deletePattern(`projects:${userId}:*`);
 
-      res.status(200).json({
-        success: true,
-        message: 'Thumbnail URL refreshed successfully',
-        data: {
-          thumbnail: newThumbnailUrl
-        }
-      });
+        res.status(200).json({
+          success: true,
+          data: {
+            thumbnailUrl: newThumbnailUrl,
+            label: updatedLabel
+          }
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          message: 'Thumbnail not found'
+        });
+      }
     } catch (storageError) {
       throw createError('Failed to refresh thumbnail URL', 500);
     }

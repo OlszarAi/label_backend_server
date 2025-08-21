@@ -4,6 +4,7 @@ import { createError } from '../middleware/errorHandler';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { generateUniqueLabel, generateCopyName, type LabelForNaming } from '../utils/labelNaming';
 import { StorageManager } from '../core/storage/bucket-manager';
+import { ThumbnailService } from '../services/thumbnail.service';
 import { CacheManager } from '../core/cache/cache-manager';
 import { Logger } from '../utils/logger';
 import Joi from 'joi';
@@ -611,6 +612,66 @@ export const saveAsTemplate = async (req: AuthenticatedRequest, res: Response, n
     });
   } catch (error) {
     Logger.error('Error saving label as template:', error);
+    next(error);
+  }
+};
+
+/**
+ * Generate thumbnail for a label from dataURL
+ */
+export const generateThumbnail = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { labelId } = req.params;
+    const { dataURL, size = 'md' } = req.body;
+    const userId = req.user!.id;
+
+    if (!labelId) {
+      throw createError('Label ID is required', 400);
+    }
+
+    if (!dataURL) {
+      throw createError('DataURL is required', 400);
+    }
+
+    // Verify label exists and user owns it
+    const label = await prisma.label.findFirst({
+      where: {
+        id: labelId,
+        project: { userId }
+      }
+    });
+
+    if (!label) {
+      throw createError('Label not found', 404);
+    }
+
+    // Generate thumbnail using service
+    const success = await ThumbnailService.generateThumbnail(labelId, dataURL, size);
+
+    if (success) {
+      // Get the new thumbnail URL
+      const thumbnailUrl = await ThumbnailService.getThumbnailUrl(labelId, size);
+      
+      // Clear relevant caches
+      await CacheManager.delete(`label:${labelId}`);
+      await CacheManager.delete(`project:${label.projectId}`);
+      await CacheManager.deletePattern(`projects:${userId}:*`);
+
+      Logger.info(`🖼️ Generated thumbnail for label ${labelId} (${size}) by user ${userId}`);
+
+      res.status(200).json({
+        success: true,
+        message: 'Thumbnail generated successfully',
+        data: {
+          thumbnailUrl,
+          size
+        }
+      });
+    } else {
+      throw createError('Failed to generate thumbnail', 500);
+    }
+  } catch (error) {
+    Logger.error('Error generating thumbnail:', error);
     next(error);
   }
 };

@@ -301,13 +301,13 @@ export class StorageManager {
   /**
    * Refresh signed URL for thumbnail
    */
-  static async refreshThumbnailUrl(labelId: string, size: string = 'md'): Promise<string> {
+  static async refreshThumbnailUrl(labelId: string, size: string = 'md'): Promise<string | null> {
     try {
       const path = `labels/${labelId}/${size}.png`;
       return await this.getSignedUrl(STORAGE_BUCKETS.THUMBNAILS, path, 3600);
     } catch (error) {
-      Logger.error(`Failed to refresh thumbnail URL for label ${labelId}:`, error);
-      throw error;
+      Logger.warning(`⚠️  Failed to refresh thumbnail URL for label ${labelId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return null; // Return null instead of throwing
     }
   }
 

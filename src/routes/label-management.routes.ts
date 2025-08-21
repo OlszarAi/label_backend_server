@@ -5,7 +5,8 @@ import {
   createLabelFromTemplate,
   createBulkLabels,
   createBulkLabelsUnique,
-  saveAsTemplate
+  saveAsTemplate,
+  generateThumbnail
 } from '../controllers/label-management.controller';
 import { validateAuth } from '../middleware/auth.middleware';
 
@@ -21,5 +22,8 @@ router.post('/projects/:projectId/create-from-template', createLabelFromTemplate
 router.post('/projects/:projectId/bulk-create', createBulkLabels);
 router.post('/projects/:projectId/bulk-create-unique', createBulkLabelsUnique);
 router.post('/labels/:labelId/save-as-template', saveAsTemplate);
+
+// Thumbnail management
+router.post('/labels/:labelId/generate-thumbnail', generateThumbnail);
 
 export { router as labelManagementRoutes };
