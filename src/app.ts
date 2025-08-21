@@ -13,6 +13,7 @@ import { healthRoutes } from './routes/health.routes';
 import { projectRoutes } from './routes/project.routes';
 import simplifiedAssetRoutes from './routes/simplified-asset.routes';
 import { labelManagementRoutes } from './routes/label-management.routes';
+import { templateRoutes } from './routes/template.routes';
 
 const app = express();
 
@@ -88,7 +89,8 @@ app.get('/', (req, res) => {
       auth: '/api/auth',
       projects: '/api/projects',
       assets: '/api/assets',
-      labelManagement: '/api/label-management'
+      labelManagement: '/api/label-management',
+      templates: '/api/templates'
     }
   });
 });
@@ -99,6 +101,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/assets', simplifiedAssetRoutes);
 app.use('/api/label-management', labelManagementRoutes);
+app.use('/api/templates', templateRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

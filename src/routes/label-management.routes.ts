@@ -3,7 +3,9 @@ import {
   createLabelWithAutoNaming,
   duplicateLabel,
   createLabelFromTemplate,
-  createBulkLabels
+  createBulkLabels,
+  createBulkLabelsUnique,
+  saveAsTemplate
 } from '../controllers/label-management.controller';
 import { validateAuth } from '../middleware/auth.middleware';
 
@@ -17,5 +19,7 @@ router.post('/projects/:projectId/create', createLabelWithAutoNaming);
 router.post('/labels/:labelId/duplicate', duplicateLabel);
 router.post('/projects/:projectId/create-from-template', createLabelFromTemplate);
 router.post('/projects/:projectId/bulk-create', createBulkLabels);
+router.post('/projects/:projectId/bulk-create-unique', createBulkLabelsUnique);
+router.post('/labels/:labelId/save-as-template', saveAsTemplate);
 
 export { router as labelManagementRoutes };

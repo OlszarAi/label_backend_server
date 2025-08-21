@@ -7,6 +7,7 @@ import { StorageManager } from '../core/storage/bucket-manager';
 import { CacheManager } from '../core/cache/cache-manager';
 import { Logger } from '../utils/logger';
 import Joi from 'joi';
+import { v4 as uuidv4 } from 'uuid';
 
 // Validation schemas for label management
 const createLabelWithAutoNamingSchema = Joi.object({
@@ -51,12 +52,45 @@ const createFromTemplateSchema = Joi.object({
   fabricData: Joi.object().optional()
 });
 
+const createBulkLabelsUniqueSchema = Joi.object({
+  labels: Joi.array().items(
+    Joi.object({
+      name: Joi.string().min(1).max(100).required().messages({
+        'string.min': 'Label name must be at least 1 character long',
+        'string.max': 'Label name cannot exceed 100 characters',
+        'any.required': 'Label name is required'
+      }),
+      description: Joi.string().max(500).allow('').optional().messages({
+        'string.max': 'Description cannot exceed 500 characters'
+      }),
+      width: Joi.number().positive().max(1000).required().messages({
+        'number.positive': 'Width must be a positive number',
+        'number.max': 'Width cannot exceed 1000mm',
+        'any.required': 'Width is required'
+      }),
+      height: Joi.number().positive().max(1000).required().messages({
+        'number.positive': 'Height must be a positive number',
+        'number.max': 'Height cannot exceed 1000mm',
+        'any.required': 'Height is required'
+      }),
+      fabricData: Joi.object().required().messages({
+        'any.required': 'FabricData is required'
+      }),
+      thumbnail: Joi.string().optional()
+    })
+  ).min(1).max(10000).required().messages({
+    'array.min': 'At least 1 label is required',
+    'array.max': 'Cannot create more than 10000 labels at once',
+    'any.required': 'Labels array is required'
+  })
+});
+
 const createBulkLabelsSchema = Joi.object({
-  count: Joi.number().integer().min(1).max(50).required().messages({
+  count: Joi.number().integer().min(1).max(10000).required().messages({
     'number.base': 'Count must be a number',
     'number.integer': 'Count must be an integer',
     'number.min': 'Count must be at least 1',
-    'number.max': 'Count cannot exceed 50',
+    'number.max': 'Count cannot exceed 10000',
     'any.required': 'Count is required'
   }),
   name: Joi.string().min(1).max(100).optional().messages({
@@ -74,12 +108,15 @@ const createBulkLabelsSchema = Joi.object({
     'number.positive': 'Height must be a positive number',
     'number.max': 'Height cannot exceed 1000mm'
   }),
-  fabricData: Joi.object().optional()
+  fabricData: Joi.object().optional(),
+  qrCodeBaseData: Joi.string().optional(),
+  thumbnail: Joi.string().optional()
 });
 
 /**
  * Create a new label with automatic unique naming
  * If no name is provided, generates "New Label X" where X is the next available number
+ * Supports fabricData for creating labels with content
  */
 export const createLabelWithAutoNaming = async (
   req: AuthenticatedRequest,
@@ -93,6 +130,21 @@ export const createLabelWithAutoNaming = async (
     if (!userId) {
       return next(createError('Unauthorized', 401));
     }
+
+    // Validate request body
+    const { error, value } = createLabelWithAutoNamingSchema.validate(req.body);
+    if (error) {
+      return next(createError(error.details[0]?.message || 'Validation error', 400));
+    }
+
+    const { 
+      name: customName, 
+      description, 
+      width, 
+      height, 
+      fabricData, 
+      thumbnail 
+    } = value;
 
     // Verify project ownership
     const project = await prisma.project.findFirst({
@@ -117,19 +169,29 @@ export const createLabelWithAutoNaming = async (
       },
     });
 
-    // Generate unique name
-    const labelName = generateUniqueLabel(existingLabels);
+    // Generate unique name - use custom name or auto-generate
+    const labelName = customName ? 
+      generateUniqueLabel(existingLabels as LabelForNaming[], customName) : 
+      generateUniqueLabel(existingLabels);
 
-    // Create the label
+    // Create the label with all provided data
     const label = await prisma.label.create({
       data: {
         name: labelName,
         projectId,
-        description: '',
-        width: 100,
-        height: 50,
+        description: description || '',
+        width: width || 100,
+        height: height || 50,
+        fabricData: fabricData || {
+          version: '6.0.0',
+          objects: [],
+          background: '#ffffff'
+        },
+        thumbnail: thumbnail || null
       },
     });
+
+    Logger.info(`✅ Created label: ${labelName} with fabricData - hasObjects: ${fabricData?.objects?.length > 0}, objectCount: ${fabricData?.objects?.length || 0}`);
 
     // Clear cache
     await CacheManager.deletePattern(`labels:project:${projectId}:*`);
@@ -295,7 +357,7 @@ export const createLabelFromTemplate = async (
 };
 
 /**
- * Create multiple labels at once with automatic numbering
+ * Create multiple labels at once with automatic numbering and unique UUIDs
  */
 export const createBulkLabels = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -320,7 +382,15 @@ export const createBulkLabels = async (req: AuthenticatedRequest, res: Response,
       throw createError('Project not found', 404);
     }
 
-    const { count, name, description, width, height, fabricData } = value;
+    const { 
+      count, 
+      name, 
+      description, 
+      width, 
+      height, 
+      fabricData, 
+      thumbnail 
+    } = value;
 
     // Get existing labels for name generation
     const existingLabels = await prisma.label.findMany({
@@ -330,8 +400,10 @@ export const createBulkLabels = async (req: AuthenticatedRequest, res: Response,
 
     const baseName = name || 'New Label';
     const labels = [];
+    const createdLabelsInfo = [];
 
     // Create labels one by one to ensure proper numbering
+    // Each label gets the SAME fabricData (template) - UUID processing happens on frontend
     for (let i = 0; i < count; i++) {
       // Refresh existing labels list for each iteration to account for newly created labels
       const currentExistingLabels = await prisma.label.findMany({
@@ -340,7 +412,7 @@ export const createBulkLabels = async (req: AuthenticatedRequest, res: Response,
       });
 
       const labelName = generateUniqueLabel(currentExistingLabels as LabelForNaming[], baseName);
-
+      
       const label = await prisma.label.create({
         data: {
           name: labelName,
@@ -352,11 +424,16 @@ export const createBulkLabels = async (req: AuthenticatedRequest, res: Response,
             version: '6.0.0',
             objects: [],
             background: '#ffffff'
-          }
+          },
+          thumbnail: thumbnail || null
         }
       });
 
       labels.push(label);
+      createdLabelsInfo.push({
+        id: label.id,
+        name: label.name
+      });
     }
 
     // Clear cache
@@ -368,9 +445,172 @@ export const createBulkLabels = async (req: AuthenticatedRequest, res: Response,
     res.status(201).json({
       success: true,
       message: `${count} labels created successfully`,
-      data: labels
+      data: createdLabelsInfo
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Create multiple labels with unique fabricData for each label
+ * This is the improved bulk creation that ensures each label has unique UUIDs/QR codes
+ */
+export const createBulkLabelsUnique = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user!.id;
+
+    if (!projectId) {
+      throw createError('Project ID is required', 400);
+    }
+
+    const { error, value } = createBulkLabelsUniqueSchema.validate(req.body);
+    if (error) {
+      throw createError(error.details[0]?.message || 'Validation error', 400);
+    }
+
+    // Verify project ownership
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, userId }
+    });
+
+    if (!project) {
+      throw createError('Project not found', 404);
+    }
+
+    const { labels: labelData } = value;
+
+    // Get existing labels for name generation
+    const existingLabels = await prisma.label.findMany({
+      where: { projectId },
+      select: { id: true, name: true }
+    });
+
+    const createdLabels = [];
+
+    // Create labels one by one with their unique fabricData
+    for (let i = 0; i < labelData.length; i++) {
+      const labelInfo = labelData[i];
+      
+      // Refresh existing labels list for each iteration to account for newly created labels
+      const currentExistingLabels = await prisma.label.findMany({
+        where: { projectId },
+        select: { id: true, name: true }
+      });
+
+      // Generate unique name (backend ensures uniqueness)
+      const uniqueName = generateUniqueLabel(currentExistingLabels as LabelForNaming[], labelInfo.name);
+      
+      const label = await prisma.label.create({
+        data: {
+          name: uniqueName,
+          description: labelInfo.description || `Bulk created label ${i + 1}`,
+          width: labelInfo.width,
+          height: labelInfo.height,
+          projectId,
+          fabricData: labelInfo.fabricData, // Each label has its own unique fabricData
+          thumbnail: labelInfo.thumbnail || null
+        }
+      });
+
+      createdLabels.push({
+        id: label.id,
+        name: label.name
+      });
+
+      // Log progress for debugging
+      if (i % 10 === 0 || i === labelData.length - 1) {
+        Logger.info(`📦 Created ${i + 1}/${labelData.length} unique labels`);
+      }
+    }
+
+    // Clear cache
+    await CacheManager.deletePattern(`projects:${userId}:*`);
+    await CacheManager.delete(`project:${projectId}`);
+
+    Logger.info(`🎯 Successfully created ${createdLabels.length} labels with unique UUIDs in project ${projectId}`);
+
+    res.status(201).json({
+      success: true,
+      message: `${createdLabels.length} labels created successfully with unique UUIDs`,
+      data: createdLabels
+    });
+  } catch (error) {
+    Logger.error('Error creating unique bulk labels:', error);
+    next(error);
+  }
+};
+
+/**
+ * Save label as template
+ */
+export const saveAsTemplate = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { labelId } = req.params;
+    const userId = req.user!.id;
+
+    if (!labelId) {
+      throw createError('Label ID is required', 400);
+    }
+
+    const { name, description, category = 'CUSTOM', tags = [], isPublic = false } = req.body;
+
+    if (!name) {
+      throw createError('Template name is required', 400);
+    }
+
+    // Get the label to convert to template
+    const label = await prisma.label.findFirst({
+      where: { 
+        id: labelId,
+        project: {
+          userId // Ensure user owns the project
+        }
+      },
+      include: {
+        project: true
+      }
+    });
+
+    if (!label) {
+      throw createError('Label not found or access denied', 404);
+    }
+
+    // Create template from label
+    const template = await prisma.template.create({
+      data: {
+        name,
+        description,
+        category,
+        tags,
+        width: label.width,
+        height: label.height,
+        fabricData: label.fabricData || {
+          version: '6.0.0',
+          objects: [],
+          background: '#ffffff'
+        },
+        thumbnail: label.thumbnail,
+        isPublic,
+        isDefault: false,
+        isSystem: false,
+        userId
+      }
+    });
+
+    // Clear cache
+    await CacheManager.deletePattern(`templates:*`);
+
+    Logger.info(`📋 Label ${labelId} saved as template ${template.id} by user ${userId}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Label saved as template successfully',
+      data: template
+    });
+  } catch (error) {
+    Logger.error('Error saving label as template:', error);
     next(error);
   }
 };

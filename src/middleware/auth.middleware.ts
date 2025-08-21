@@ -11,6 +11,11 @@ export interface AuthenticatedRequest extends Request {
     username: string;
     role: string;
   };
+  project?: {
+    id: string;
+    name: string;
+    userId: string;
+  };
 }
 
 export const validateAuth = async (
@@ -102,4 +107,46 @@ export const requireRole = (roles: string[]) => {
 
     next();
   };
+};
+
+export const validateProjectAccess = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user) {
+      return next(createError('Authentication required', 401));
+    }
+
+    const projectId = req.params.projectId || req.params.id;
+    
+    if (!projectId) {
+      return next(createError('Project ID required', 400));
+    }
+
+    // Check if project exists and user has access
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        userId: req.user.id
+      },
+      select: {
+        id: true,
+        name: true,
+        userId: true
+      }
+    });
+
+    if (!project) {
+      return next(createError('Project not found or access denied', 404));
+    }
+
+    // Attach project to request
+    req.project = project;
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 };
